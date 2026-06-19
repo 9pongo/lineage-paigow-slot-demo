@@ -80,6 +80,15 @@ const CONFIG = {
   },
   JP_CONTRIB: { major:0.004, grand:0.006 },   // 每注貢獻（×總注）累加入 major/grand 池
 
+  // 購買功能（Buy Feature）：直接花錢觸發特色。
+  // 買價 = 特色EV / 目標buy-RTP，令買來的 RTP ≈ 基礎 RTP（買不改變期望值）。
+  // EV 由 sim.cjs 實測：FS 24.51 / HS(6顆起) 26.60 / Bonus 13.67（× 總注）。
+  BUY: {
+    fs:    { mult:26,   label:"免費遊戲",    icon:"💰", desc:"直接進 8 次免費遊戲（Wild 倍率階梯）" },
+    hs:    { mult:28,   label:"Hold & Spin", icon:"🪙", desc:"直接鎖 6 金幣開始 Hold & Spin" },
+    bonus: { mult:14.5, label:"Bonus Game",  icon:"🀆", desc:"直接進 Bonus，仍由你二選一波動性" },
+  },
+
   PAYLINES: [
     [1,1,1,1,1],[0,0,0,0,0],[2,2,2,2,2],
     [0,1,2,1,0],[2,1,0,1,2],
@@ -184,6 +193,10 @@ function jackpotWin(tier, bet, jpState){
   const pool = (jpState && jpState[tier]!=null) ? jpState[tier] : J.base;
   return pool * (bet/MAX_BET);
 }
+
+/* ----- 購買功能 ----- */
+// 某購買選項的花費（credits）= mult × 總注
+function buyCost(key, bet){ const B=CONFIG.BUY[key]; return B ? Math.round(B.mult*bet) : 0; }
 
 /* ----- Hold & Spin ----- */
 function rollCoin(rng=RND){
@@ -291,7 +304,7 @@ function simCardBattle(bet, jpState, rng=RND){
 return {
   CONFIG, REEL_WEIGHTS, BONUS_MODES, STRIPS, MAX_BET, mulberry32,
   shuffle, buildStrips, spinGrid, positionsOf, gridHasWild,
-  evaluateLines, scatterPayout, jackpotWin,
+  evaluateLines, scatterPayout, jackpotWin, buyCost,
   rollCoin, coinValue, simHoldAndSpin,
   simFreeSpins,
   makePickReward, makePickBoxes, simPickBonus,

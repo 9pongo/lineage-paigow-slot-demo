@@ -110,6 +110,24 @@
     background:var(--panel2); color:var(--ink); font-size:12px; font-weight:800; cursor:pointer;}
   .sbtn.on{ background:linear-gradient(180deg,#f7d774,#c8932a); color:#3a1500; border-color:#f7d774;}
   .sbtn:active{ transform:translateY(1px);}
+  .sbtn.buy{ background:linear-gradient(180deg,#ff7d97,#c0203a); color:#fff; border-color:#ff9db0;
+    box-shadow:0 0 12px rgba(255,80,120,.4);}
+
+  /* ===== 購買特色 Buy Feature 選單 ===== */
+  .buy-row{ display:flex; align-items:center; gap:12px; width:min(440px,94vw); cursor:pointer;
+    background:linear-gradient(180deg,#241a40,#140e26); border:2px solid #3a2c63; border-radius:14px;
+    padding:12px 14px; margin-bottom:10px; transition:transform .12s, box-shadow .2s, border-color .2s;}
+  .buy-row:hover{ transform:translateY(-2px); border-color:var(--gold2); box-shadow:0 6px 16px rgba(0,0,0,.4);}
+  .buy-row:active{ transform:translateY(0);}
+  .buy-row .b-ic{ font-size:34px; line-height:1; flex:0 0 auto;}
+  .buy-row .b-mid{ flex:1; text-align:left; min-width:0;}
+  .buy-row .b-nm{ font-size:16px; font-weight:900; color:#fff;}
+  .buy-row .b-desc{ font-size:11px; color:#bba; margin-top:3px; line-height:1.4;}
+  .buy-row .b-price{ text-align:right; flex:0 0 auto;}
+  .buy-row .b-price b{ font-size:19px; font-weight:900; color:var(--gold); font-variant-numeric:tabular-nums;}
+  .buy-row .b-price small{ display:block; font-size:10px; color:#a99; font-weight:700;}
+  .buy-row.dim{ opacity:.42; cursor:default; border-style:dashed;}
+  .buy-row.dim:hover{ transform:none; box-shadow:none; border-color:#3a2c63;}
 
   /* 大獎演出 */
   .overlay{ position:fixed; inset:0; display:none; align-items:center; justify-content:center;
@@ -287,6 +305,7 @@
 
   <div class="controls">
     <div class="side">
+      <button class="sbtn buy" id="btn-buy">購買 ⚡</button>
       <button class="sbtn" id="btn-auto">自動 ▶</button>
       <button class="sbtn on" id="btn-snd">音效 ♪</button>
       <button class="sbtn" id="btn-pt">說明 ❓</button>
@@ -313,6 +332,14 @@
   <div class="ov-tier" id="ov-tier">BIG WIN</div>
   <div class="ov-amt" id="ov-amt">0</div>
   <div class="ov-hint">點擊繼續</div>
+</div>
+
+<!-- 購買特色 Buy Feature -->
+<div class="bonus-ov" id="buymenu">
+  <div class="bonus-head">⚡ 購買特色 BUY FEATURE</div>
+  <div class="bonus-sub">直接花費點數觸發特色 ──<br>買來的 RTP ≈ 一般遊戲（買不吃虧）</div>
+  <div id="buy-choices"></div>
+  <button class="pt-close" id="buy-cancel" style="margin-top:8px">取消</button>
 </div>
 
 <!-- Bonus 選擇 -->
@@ -837,6 +864,49 @@ async function routeBonus(key){
 }
 
 /* ============================================================
+   購買功能 Buy Feature — 花費點數直接觸發特色
+   買價來自 engine.js CONFIG.BUY（買來 RTP ≈ 基礎 RTP，sim.cjs 已驗證）
+   ============================================================ */
+function openBuyMenu(){
+  if (S.spinning) return;
+  if (S.auto) stopAuto();
+  const wrap=$("buy-choices"); wrap.innerHTML="";
+  for (const key of ["fs","hs","bonus"]){
+    const B=CONFIG.BUY[key], cost=buyCost(key,bet()), afford=S.balance>=cost;
+    const row=document.createElement("div");
+    row.className="buy-row"+(afford?"":" dim");
+    row.innerHTML=`<div class="b-ic">${B.icon}</div>
+      <div class="b-mid"><div class="b-nm">${B.label}</div><div class="b-desc">${B.desc}</div></div>
+      <div class="b-price"><b>${fmt(cost)}</b><small>${afford?"花費":"餘額不足"}</small></div>`;
+    if (afford) row.addEventListener("click",()=>{ hideBonusOv("buymenu"); buyFeature(key); });
+    wrap.appendChild(row);
+  }
+  showBonusOv("buymenu");
+}
+async function buyFeature(key){
+  const cost=buyCost(key,bet());
+  if (S.balance<cost){ setBanner("餘額不足，無法購買"); return; }
+  ac();
+  S.spinning=true; $("btn-spin").disabled=true; $("btn-buy").disabled=true;
+  S.balance-=cost; $("m-win").textContent="0"; refreshMeters();
+  setBanner("⚡ 已購買 "+CONFIG.BUY[key].label+"！");
+  await wait(500);
+  try{
+    if (key==="fs")        await runFreeSpins();
+    else if (key==="hs")   await runHoldAndSpin(randomCoinPositions(CONFIG.HS_TRIGGER));
+    else if (key==="bonus"){ const choice=await enterBonus(); await routeBonus(choice); }
+  } catch(err){
+    console.error("buyFeature error:",err); setBanner("購買特色發生錯誤");
+    ["chooser","pickem","cardbattle","overlay","buymenu"].forEach(id=>{ const el=$(id); if(el) el.classList.remove("show"); });
+    clearHeldTags(); guardiansReset(); clearBeams();
+  } finally {
+    S.spinning=false; $("btn-spin").disabled=false; $("btn-buy").disabled=false;
+  }
+}
+$("btn-buy").addEventListener("click", openBuyMenu);
+$("buy-cancel").addEventListener("click", ()=>hideBonusOv("buymenu"));
+
+/* ============================================================
    龍虎施法演出（純表演層）
    結果已由 engine.js 決定；此層只延後揭曉、製造期待感，
    最終盤面永遠等於引擎結果，完全不改變賠付/RTP（engine.js 不知其存在）。
@@ -1026,6 +1096,16 @@ function buildPaytable(){
   連勝累加步進：<b>${CONFIG.CB.STEP.slice(0,7).map(v=>v+'×').join(' → ')} …</b><br>
   雙六天王對勝 → 額外獎勵 <span class="pt-badge major-b">MAJOR JACKPOT</span><br>
   封頂：<b>${CONFIG.CB.CAP}×</b> 總注（全機最大獎）&nbsp;│&nbsp; 一輸即結束
+  </div></div>`;
+
+  // ── 購買功能 ──
+  h+=`<div class="pt-sec"><div class="pt-sec-title">⚡ 購買特色（Buy Feature）</div>
+  <div class="pt-rule">
+  按「購買 ⚡」直接花費點數觸發特色，免等自然觸發。<b>買來的 RTP ≈ 一般遊戲（買不吃虧）</b>：<br>
+  <span class="pt-hl">${CONFIG.BUY.fs.label}</span> ── ${CONFIG.BUY.fs.mult}× 總注（${CONFIG.BUY.fs.desc}）<br>
+  <span class="pt-hl">${CONFIG.BUY.hs.label}</span> ── ${CONFIG.BUY.hs.mult}× 總注（${CONFIG.BUY.hs.desc}）<br>
+  <span class="pt-hl">${CONFIG.BUY.bonus.label}</span> ── ${CONFIG.BUY.bonus.mult}× 總注（${CONFIG.BUY.bonus.desc}）<br>
+  <br>買價＝特色期望值 ÷ 目標RTP，故與一般遊戲期望一致（sim.cjs 已驗證）。
   </div></div>`;
 
   // ── 遊戲資訊 ──
