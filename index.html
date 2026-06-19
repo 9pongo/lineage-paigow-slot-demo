@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>天堂推筒子 · 龍虎寶藏 SLOT（可玩原型）</title>
+<style>
+  :root{
+    --gold:#f7d774; --gold2:#c8932a; --red:#c0203a; --red2:#7a0f1f;
+    --bg:#0c0a14; --panel:#161227; --panel2:#211a3a; --ink:#fff3d6;
+    --green:#46d36b; --cell:#1b1530; --cellb:#3a2c63;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; height:100%;}
+  body{
+    background:radial-gradient(circle at 50% 0%, #2a1530 0%, var(--bg) 60%);
+    color:var(--ink); font-family:"PingFang TC","Microsoft JhengHei","Noto Sans TC",sans-serif;
+    display:flex; flex-direction:column; align-items:center; min-height:100%;
+    overflow-x:hidden; user-select:none;
+  }
+  .machine{ width:min(560px,100vw); padding:10px 12px 16px; }
+
+  /* 標題 */
+  .title{ text-align:center; margin:6px 0 8px;}
+  .title h1{
+    margin:0; font-size:26px; letter-spacing:2px; font-weight:900;
+    background:linear-gradient(180deg,#fff6d6,#f7d774 45%,#c8932a 75%,#8a5b12);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    text-shadow:0 2px 0 rgba(0,0,0,.35);
+  }
+  .title small{ color:#caa; font-size:11px; letter-spacing:1px;}
+
+  /* JACKPOT 條 */
+  .jp-bar{ display:flex; gap:6px; margin:8px 0;}
+  .jp{ flex:1; text-align:center; border-radius:10px; padding:5px 2px 6px;
+    background:linear-gradient(180deg,#2a2046,#15102a);
+    border:1px solid #3a2c63; position:relative; overflow:hidden;}
+  .jp .lab{ font-size:11px; font-weight:800; letter-spacing:1px;}
+  .jp .val{ font-size:14px; font-weight:900; color:#fff; font-variant-numeric:tabular-nums;}
+  .jp.mini .lab{color:#8fd3ff;} .jp.minor .lab{color:#9dff9d;}
+  .jp.major .lab{color:#ffd86b;} .jp.grand .lab{color:#ff8db0;}
+  .jp.grand{ border-color:#ff8db0; box-shadow:0 0 14px rgba(255,80,130,.35) inset;}
+  .jp.flash{ animation:jpflash .5s ease 6;}
+  @keyframes jpflash{50%{background:linear-gradient(180deg,#fff3c0,#f7d774); color:#3a1e00;}}
+
+  /* 轉軸區 */
+  .reels-wrap{ position:relative; border-radius:16px; padding:10px;
+    background:linear-gradient(180deg,#241a40,#120d22);
+    border:2px solid var(--gold2);
+    box-shadow:0 0 0 3px #1a1330, 0 10px 30px rgba(0,0,0,.6), 0 0 24px rgba(247,215,116,.15) inset;}
+  .reels{ display:grid; grid-template-columns:repeat(5,1fr); gap:6px; }
+  .reel{ display:grid; grid-template-rows:repeat(3,1fr); gap:6px; overflow:hidden;}
+  .cell{ position:relative; aspect-ratio:1/1.05; border-radius:10px;
+    background:radial-gradient(circle at 50% 35%, #241c40, var(--cell));
+    border:1px solid var(--cellb); display:flex; align-items:center; justify-content:center;
+    font-size:32px; font-weight:900; transition:transform .08s;}
+  .cell .sym{ display:flex; flex-direction:column; align-items:center; line-height:1; }
+  .cell .em{ font-size:30px; }
+  .cell .nm{ font-size:10px; margin-top:2px; color:#d8c7a0; font-weight:700; letter-spacing:0.5px;}
+  .cell.win{ animation:pop .45s ease; box-shadow:0 0 16px var(--gold) inset, 0 0 10px var(--gold);}
+  @keyframes pop{0%,100%{transform:scale(1);}40%{transform:scale(1.12);}}
+  .cell.dim{ opacity:.32; filter:saturate(.4);}
+  .cell.held{ box-shadow:0 0 0 2px var(--gold) inset, 0 0 12px rgba(247,215,116,.5);}
+  .cell.scat{ box-shadow:0 0 16px #6cf inset;}
+  .blur .em{ filter:blur(1.5px); }
+
+  /* 符號配色 */
+  .s-wild .em{filter:drop-shadow(0 0 6px #ffcf4d);}
+  .s-scatter .em{filter:drop-shadow(0 0 6px #5cd0ff);}
+  .s-coin .em{filter:drop-shadow(0 0 6px #ffd24d);}
+  .s-bonus .em{filter:drop-shadow(0 0 7px #8fe0c0);}
+
+  .coinval{ position:absolute; bottom:4px; font-size:12px; font-weight:900; color:#3a1e00;
+    background:linear-gradient(180deg,#ffe9a0,#f0b53a); padding:1px 6px; border-radius:8px;
+    border:1px solid #fff3c0; }
+  .coinval.jpk{ background:linear-gradient(180deg,#ffd0e2,#ff7aa6); color:#5a0020; }
+
+  /* 提示列 */
+  .banner{ text-align:center; min-height:22px; margin:8px 0 4px; font-weight:800; font-size:15px;
+    letter-spacing:1px; color:var(--gold);}
+  .banner.fs{ color:#9dff9d;} .banner.hs{ color:#ffd86b;}
+
+  /* 控制列 */
+  .meters{ display:flex; gap:8px; margin:6px 0;}
+  .meter{ flex:1; background:var(--panel); border:1px solid #322750; border-radius:10px; padding:6px 8px;}
+  .meter .k{ font-size:10px; color:#a99; letter-spacing:1px;}
+  .meter .v{ font-size:18px; font-weight:900; color:#fff; font-variant-numeric:tabular-nums;}
+  .meter .v.win{ color:var(--gold);}
+
+  .controls{ display:flex; align-items:center; gap:10px; margin-top:6px;}
+  .betbox{ flex:1; display:flex; align-items:center; gap:6px; background:var(--panel);
+    border:1px solid #322750; border-radius:12px; padding:6px;}
+  .betbox .bk{ font-size:10px; color:#a99; }
+  .betbox .bv{ flex:1; text-align:center; font-size:18px; font-weight:900; color:var(--gold);}
+  .rbtn{ width:34px; height:34px; border-radius:9px; border:1px solid var(--gold2);
+    background:linear-gradient(180deg,#2c2148,#191130); color:var(--gold); font-size:20px;
+    font-weight:900; cursor:pointer;}
+  .rbtn:active{ transform:translateY(1px);}
+
+  .spin{ width:96px; height:96px; border-radius:50%; cursor:pointer; flex:0 0 auto;
+    border:none; font-size:18px; font-weight:900; color:#3a1500; letter-spacing:1px;
+    background:radial-gradient(circle at 50% 35%, #ffe9a8, #f7d774 40%, #c8932a 75%, #8a5b12);
+    box-shadow:0 6px 0 #6e4a10, 0 8px 18px rgba(0,0,0,.5); position:relative;}
+  .spin:active{ transform:translateY(4px); box-shadow:0 2px 0 #6e4a10;}
+  .spin:disabled{ filter:grayscale(.5) brightness(.8); cursor:default;}
+  .spin .sub{ display:block; font-size:10px; font-weight:800; color:#7a4d00;}
+
+  .side{ flex:0 0 auto; display:flex; flex-direction:column; gap:6px;}
+  .sbtn{ width:64px; padding:7px 0; border-radius:10px; border:1px solid #4a3a78;
+    background:var(--panel2); color:var(--ink); font-size:12px; font-weight:800; cursor:pointer;}
+  .sbtn.on{ background:linear-gradient(180deg,#f7d774,#c8932a); color:#3a1500; border-color:#f7d774;}
+  .sbtn:active{ transform:translateY(1px);}
+
+  /* 大獎演出 */
+  .overlay{ position:fixed; inset:0; display:none; align-items:center; justify-content:center;
+    z-index:50; background:rgba(5,2,12,.72); flex-direction:column;}
+  .overlay.show{ display:flex;}
+  .ov-tier{ font-size:46px; font-weight:900; letter-spacing:3px;
+    background:linear-gradient(180deg,#fff6d6,#f7d774 50%,#c8932a);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    text-shadow:0 0 30px rgba(247,215,116,.6); animation:zoom .5s ease;}
+  .ov-amt{ font-size:38px; font-weight:900; color:#fff; margin-top:6px; font-variant-numeric:tabular-nums;
+    text-shadow:0 0 18px rgba(255,255,255,.4);}
+  .ov-hint{ margin-top:18px; font-size:13px; color:#caa;}
+  @keyframes zoom{0%{transform:scale(.3); opacity:0;}100%{transform:scale(1); opacity:1;}}
+
+  /* 寶箱選擇（推筒子 Bonus 預留入口先略，這版聚焦 FG + Hold&Spin） */
+  .spark{ position:fixed; width:8px; height:8px; border-radius:50%; pointer-events:none; z-index:60;}
+
+  /* ===== Bonus 選擇 / 選寶箱 / 推筒子比牌 ===== */
+  .bonus-ov{ position:fixed; inset:0; z-index:55; display:none; flex-direction:column;
+    align-items:center; justify-content:center; padding:16px;
+    background:radial-gradient(circle at 50% 30%, #2a1540, #060410 75%);}
+  .bonus-ov.show{ display:flex; animation:fade .3s ease;}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+  .bonus-head{ font-size:24px; font-weight:900; letter-spacing:2px; margin-bottom:4px;
+    background:linear-gradient(180deg,#fff6d6,#f7d774 50%,#c8932a);
+    -webkit-background-clip:text; background-clip:text; color:transparent;}
+  .bonus-sub{ font-size:12px; color:#caa; text-align:center; margin-bottom:16px; line-height:1.5;}
+
+  .choices{ display:grid; grid-template-columns:repeat(2,1fr); gap:12px; width:min(480px,94vw);}
+  .choice .c-ic{ font-size:44px; }
+  .choice{ border-radius:14px; padding:14px 8px 12px; text-align:center; cursor:pointer;
+    background:linear-gradient(180deg,#241a40,#140e26); border:2px solid #3a2c63;
+    transition:transform .12s, box-shadow .2s; position:relative; overflow:hidden;}
+  .choice:hover{ transform:translateY(-4px);}
+  .choice.picked{ transform:scale(1.06); }
+  .choice .c-ic{ font-size:38px; line-height:1;}
+  .choice .c-nm{ font-size:16px; font-weight:900; margin:6px 0 2px; color:#fff;}
+  .choice .c-vol{ font-size:13px; margin:4px 0; letter-spacing:1px;}
+  .choice .c-max{ font-size:12px; font-weight:800; color:#ffd86b;}
+  .choice .c-freq{ font-size:11px; color:#bba; margin-top:4px; line-height:1.4; min-height:30px;}
+  .choice.vol1{ border-color:#5bd0ff;} .choice.vol1 .c-vol{color:#5bd0ff;}
+  .choice.vol2{ border-color:#9dff9d;} .choice.vol2 .c-vol{color:#9dff9d;}
+  .choice.vol3{ border-color:#ffd86b;} .choice.vol3 .c-vol{color:#ffd86b;}
+  .choice.vol4{ border-color:#ff8db0;} .choice.vol4 .c-vol{color:#ff8db0;
+    box-shadow:0 0 16px rgba(255,80,130,.25) inset;}
+
+  /* 選寶箱 */
+  .pe-total{ font-size:18px; color:#fff; margin-bottom:12px;}
+  .pe-total b{ color:var(--gold); font-size:24px;}
+  .pe-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; width:min(420px,92vw);}
+  .pe-box{ aspect-ratio:1/1; border-radius:12px; font-size:24px; font-weight:900; cursor:pointer;
+    color:#ffe9a8; border:2px solid var(--gold2); background:linear-gradient(180deg,#2c2148,#191130);
+    display:flex; align-items:center; justify-content:center; transition:transform .1s;}
+  .pe-box:hover{ transform:scale(1.05);}
+  .pe-box.open{ cursor:default; background:linear-gradient(180deg,#1a1430,#0e0a1c); font-size:16px;}
+  .pe-box.bomb{ color:#ff6b6b; border-color:#ff6b6b; font-size:30px;}
+  .pe-box.mult{ color:#9dff9d; border-color:#9dff9d;}
+  .pe-box.faded{ opacity:.4;}
+
+  /* 推筒子比牌 */
+  .cb-row{ display:flex; align-items:center; gap:14px; margin:10px 0 6px;}
+  .cb-side{ flex:1; text-align:center; background:linear-gradient(180deg,#241a40,#140e26);
+    border:1px solid #3a2c63; border-radius:14px; padding:12px 8px; min-width:120px;}
+  .cb-lab{ font-size:13px; color:#caa; font-weight:800; margin-bottom:6px;}
+  .cb-tiles{ display:flex; gap:8px; justify-content:center;}
+  .cb-tile{ width:46px; height:46px; border-radius:9px; font-size:34px; line-height:46px;
+    background:#fff6e0; color:#3a1e00; border:2px solid var(--gold2); animation:zoom .25s ease;}
+  .cb-pt{ margin-top:8px; font-size:13px; font-weight:800; color:#ffd86b; min-height:18px;}
+  .cb-vs{ font-size:18px; font-weight:900; color:var(--gold);}
+  .cb-stat{ font-size:16px; color:#fff; margin:10px 0;}
+  .cb-stat b{ color:var(--gold); font-size:20px;}
+
+  .foot{ text-align:center; font-size:10px; color:#766; margin-top:10px; line-height:1.6;}
+  .foot b{ color:#a98;}
+
+  /* ===== 賠率表 Paytable ===== */
+  .pt-ov{ position:fixed; inset:0; z-index:60; display:none; flex-direction:column;
+    align-items:center; overflow-y:auto; -webkit-overflow-scrolling:touch;
+    background:rgba(6,4,16,.97); padding:0 0 40px;}
+  .pt-ov.show{ display:flex; animation:fade .25s ease;}
+  .pt-head{ position:sticky; top:0; width:min(540px,97vw); display:flex; align-items:center;
+    justify-content:space-between; background:rgba(8,5,18,.98); padding:10px 0 8px;
+    border-bottom:1px solid #3a2c63; z-index:2;}
+  .pt-close{ background:var(--panel2); border:1px solid #4a3a78; color:var(--ink); border-radius:8px;
+    padding:5px 14px; font-size:13px; font-weight:800; cursor:pointer;}
+  .pt-close:active{ transform:translateY(1px);}
+  .pt-wrap{ width:min(540px,97vw); padding:14px 0 0;}
+  .pt-sec{ margin-bottom:18px;}
+  .pt-sec-title{ font-size:13px; font-weight:900; color:var(--gold); letter-spacing:1px;
+    border-bottom:1px solid #3a2c63; padding-bottom:4px; margin-bottom:8px;}
+  .pt-table{ width:100%; border-collapse:collapse; font-size:12px;}
+  .pt-table th{ color:#caa; font-weight:700; padding:4px 6px; text-align:center;
+    border-bottom:1px solid #2a2046; font-size:11px;}
+  .pt-table td{ padding:5px 6px; text-align:center; border-bottom:1px solid #1e1838; vertical-align:middle;}
+  .pt-table td.left{ text-align:left;}
+  .pt-hl{ color:var(--gold); font-weight:800;}
+  .pt-rule{ font-size:12px; color:#bba; line-height:1.8;}
+  .pt-rule b{ color:#ffd86b;}
+  .pt-badge{ display:inline-block; border-radius:5px; padding:1px 7px; font-size:11px; font-weight:800; margin:0 1px;}
+  .pt-badge.mini-b{ background:#0d2640; color:#8fd3ff;}
+  .pt-badge.minor-b{ background:#0d2d10; color:#9dff9d;}
+  .pt-badge.major-b{ background:#2d2000; color:#ffd86b;}
+  .pt-badge.grand-b{ background:#2d0015; color:#ff8db0;}
+  .pt-reset{ margin-top:4px; padding:8px 20px; border-radius:10px; border:1px solid #4a3a78;
+    background:var(--panel2); color:var(--ink); font-size:13px; font-weight:800; cursor:pointer;}
+  .pt-reset:active{ transform:translateY(1px);}
+</style>
+</head>
+<body>
+<div class="machine">
+  <div class="title">
+    <h1>天堂推筒子 · 龍虎寶藏</h1>
+    <small>5×3 · 20 線 · 財神 Wild · 金元寶免費遊戲 · 金幣 Hold&Spin · 白板 Bonus · 四層 JACKPOT　【可玩原型】</small>
+  </div>
+
+  <div class="jp-bar">
+    <div class="jp mini"><div class="lab">MINI</div><div class="val" id="jp-mini">0</div></div>
+    <div class="jp minor"><div class="lab">MINOR</div><div class="val" id="jp-minor">0</div></div>
+    <div class="jp major"><div class="lab">MAJOR</div><div class="val" id="jp-major">0</div></div>
+    <div class="jp grand"><div class="lab">GRAND</div><div class="val" id="jp-grand">0</div></div>
+  </div>
+
+  <div class="reels-wrap">
+    <div class="reels" id="reels"></div>
+  </div>
+
+  <div class="banner" id="banner">按 SPIN 開始</div>
+
+  <div class="meters">
+    <div class="meter"><div class="k">餘額 CREDIT</div><div class="v" id="m-bal">10000</div></div>
+    <div class="meter"><div class="k">本次贏分 WIN</div><div class="v win" id="m-win">0</div></div>
+  </div>
+
+  <div class="controls">
+    <div class="side">
+      <button class="sbtn" id="btn-auto">自動 ▶</button>
+      <button class="sbtn on" id="btn-snd">音效 ♪</button>
+      <button class="sbtn" id="btn-pt">說明 ❓</button>
+    </div>
+    <div class="betbox">
+      <button class="rbtn" id="bet-dn">−</button>
+      <div style="flex:1;text-align:center">
+        <div class="bk">總押注 BET</div>
+        <div class="bv" id="m-bet">20</div>
+      </div>
+      <button class="rbtn" id="bet-up">＋</button>
+    </div>
+    <button class="spin" id="btn-spin">SPIN<span class="sub" id="spin-sub">轉動</span></button>
+  </div>
+
+  <div class="foot">
+    數值由 <b>engine.js</b> 單一真相源驅動，<b>RTP ≈ 94.4%</b>（sim.cjs：Bonus Game 二模式等 EV）。規格：廠商需求第 9 點。<br>
+    金元寶 3+ → 免費遊戲(直接進入)　·　金幣 6+ → Hold&Spin(直接)　·　<b>白板 3+ → Bonus Game</b> 二選一(選寶箱／推筒子比牌)<br>
+    mini/minor 固定×注；major/grand 累積有上限，<b>滿注全拿、否則依比例</b>　·　集滿 15 格＝GRAND
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="ov-tier" id="ov-tier">BIG WIN</div>
+  <div class="ov-amt" id="ov-amt">0</div>
+  <div class="ov-hint">點擊繼續</div>
+</div>
+
+<!-- Bonus 選擇 -->
+<div class="bonus-ov" id="chooser">
+  <div class="bonus-head">選擇你的 BONUS</div>
+  <div class="bonus-sub">挑你喜歡的波動性 ──<br>最高獎金低 → 中獎頻率高　·　最高獎金高 → 越稀有越刺激</div>
+  <div class="choices" id="choices"></div>
+</div>
+
+<!-- 選寶箱 -->
+<div class="bonus-ov" id="pickem">
+  <div class="bonus-head">🎁 選寶箱 BONUS</div>
+  <div class="pe-total">已累積 <b id="pe-total">0</b></div>
+  <div class="pe-grid" id="pe-grid"></div>
+  <div class="bonus-sub" id="pe-hint" style="margin-top:14px">點開寶箱累積分數，翻到 💣 結束</div>
+</div>
+
+<!-- 推筒子比牌 -->
+<div class="bonus-ov" id="cardbattle">
+  <div class="bonus-head">🀄 推筒子比牌 BONUS</div>
+  <div class="cb-row">
+    <div class="cb-side"><div class="cb-lab">莊家</div><div class="cb-tiles" id="cb-dealer"></div><div class="cb-pt" id="cb-dpt"></div></div>
+    <div class="cb-vs">VS</div>
+    <div class="cb-side"><div class="cb-lab">你 (閒)</div><div class="cb-tiles" id="cb-player"></div><div class="cb-pt" id="cb-ppt"></div></div>
+  </div>
+  <div class="cb-stat">連勝 <b id="cb-streak">0</b> ・ 倍率 <b id="cb-mult">0</b>x</div>
+  <div class="bonus-sub" id="cb-hint">比牌中…</div>
+</div>
+
+<!-- 賠率表 Paytable -->
+<div class="pt-ov" id="paytable">
+  <div class="pt-head">
+    <div class="bonus-head" style="margin:0;font-size:18px">📋 賠率表 · 遊戲說明</div>
+    <button class="pt-close" id="btn-pt-close">✕ 關閉</button>
+  </div>
+  <div class="pt-wrap" id="pt-content"></div>
+</div>
+
+<script src="engine.js"></script>
+<script>
+"use strict";
+/* ============================================================
+   天堂推筒子 · 龍虎寶藏 — 可玩原型（UI 層）
+   所有數值與數學來自 engine.js（單一真相源，與 RTP 模擬器 sim.cjs 共用）。
+   CONFIG / REEL_WEIGHTS / BONUS_MODES / evaluateLines / spinGrid /
+   positionsOf / gridHasWild / rollCoin / coinValue / makePickBoxes /
+   dealTiles / compareTiles / STRIPS 皆由 engine.js 掛載為全域。
+   ============================================================ */
+
+/* ---------- 狀態 ---------- */
+const S = {
+  balance: CONFIG.startBalance,
+  betIdx: 0,
+  spinning: false,
+  auto: false,
+  sound: true,
+  jp: { major: CONFIG.JACKPOT.major.base, grand: CONFIG.JACKPOT.grand.base }, // progressive 池
+
+  strips: [],
+  grid: [],          // grid[reel][row] = symId
+};
+const bet = () => CONFIG.betLevels[S.betIdx];
+const lineBet = () => bet() / CONFIG.LINES;
+
+/* ---------- DOM ---------- */
+const $ = id => document.getElementById(id);
+const reelsEl = $("reels");
+const cells = []; // cells[reel][row] -> element
+function buildDOM(){
+  reelsEl.innerHTML="";
+  for (let r=0;r<CONFIG.REELS;r++){
+    const col=document.createElement("div"); col.className="reel"; col.dataset.r=r;
+    cells[r]=[];
+    for (let row=0;row<CONFIG.ROWS;row++){
+      const c=document.createElement("div"); c.className="cell";
+      col.appendChild(c); cells[r][row]=c;
+    }
+    reelsEl.appendChild(col);
+  }
+}
+function paintCell(el, sym){
+  const def=CONFIG.SYM[sym];
+  el.className="cell "+(def.cls||"");
+  el.innerHTML=`<div class="sym"><span class="em">${def.em}</span><span class="nm">${def.nm}</span></div>`;
+}
+function randSym(){ const r=(Math.random()*CONFIG.REELS)|0; const st=S.strips[r]; return st[(Math.random()*st.length)|0]; }
+
+/* ---------- 音效（WebAudio 合成） ---------- */
+let AC=null;
+function ac(){ if(!AC){ try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){} } return AC; }
+function beep(freq,dur=0.08,type="square",vol=0.12,when=0){
+  if(!S.sound) return; const c=ac(); if(!c) return;
+  const t=c.currentTime+when; const o=c.createOscillator(), g=c.createGain();
+  o.type=type; o.frequency.setValueAtTime(freq,t);
+  g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(vol,t+0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.connect(g).connect(c.destination); o.start(t); o.stop(t+dur+0.02);
+}
+function sndStop(){ beep(180,0.05,"sine",0.08); }
+function sndWinSmall(){ beep(660,0.07,"triangle",0.1); beep(880,0.07,"triangle",0.1,0.06); }
+function sndScatterTick(i){ beep(400+i*120,0.12,"sawtooth",0.12); }
+function sndBigwin(){ [523,659,784,1047,1319].forEach((f,i)=>beep(f,0.18,"triangle",0.14,i*0.12)); }
+function sndCoin(){ beep(900,0.05,"square",0.1); beep(1200,0.05,"square",0.1,0.05); }
+function sndJackpot(){ [784,988,1175,1568].forEach((f,i)=>beep(f,0.25,"sawtooth",0.16,i*0.15)); }
+
+/* ---------- 主流程 ---------- */
+function setBanner(t,cls=""){ const b=$("banner"); b.textContent=t; b.className="banner "+cls; }
+function fmt(n){ return Math.round(n).toLocaleString("en-US"); }
+function refreshMeters(){
+  $("m-bal").textContent=fmt(S.balance);
+  $("m-bet").textContent=fmt(bet());
+  // mini/minor = 固定 ×總注（隨注顯示）；major/grand = progressive 池
+  $("jp-mini").textContent=fmt(CONFIG.JACKPOT.mini.mult*bet());
+  $("jp-minor").textContent=fmt(CONFIG.JACKPOT.minor.mult*bet());
+  $("jp-major").textContent=fmt(S.jp.major);
+  $("jp-grand").textContent=fmt(S.jp.grand);
+}
+function bumpJackpots(){ // major/grand 累積（有上限）
+  const b=bet();
+  S.jp.major = Math.min(CONFIG.JACKPOT.major.cap, S.jp.major + b*CONFIG.JP_CONTRIB.major);
+  S.jp.grand = Math.min(CONFIG.JACKPOT.grand.cap, S.jp.grand + b*CONFIG.JP_CONTRIB.grand);
+}
+
+function stopAuto(){ S.auto=false; const b=$("btn-auto"); b.classList.remove("on"); b.textContent="自動 ▶"; }
+
+async function doSpin(){
+  if (S.spinning) return;
+  // 餘額不足最低押注時自動補充（原型模式）
+  if (S.balance < CONFIG.betLevels[0]){
+    S.balance = CONFIG.startBalance; refreshMeters(); setBanner("餘額已補充，繼續遊戲！");
+  }
+  if (S.balance < bet()){ setBanner("餘額不足，請降低押注"); return; }
+  ac(); // 解鎖音訊
+  S.spinning=true; $("btn-spin").disabled=true;
+  S.balance -= bet(); bumpJackpots(); refreshMeters();
+  $("m-win").textContent="0";
+  setBanner("轉動中…");
+
+  try {
+    const grid = await animateSpin();
+    S.grid = grid;
+
+    // 基礎遊戲結算
+    let totalWin = 0;
+    const winCells = new Set();
+    const lineWins = evaluateLines(grid, lineBet());
+    for (const w of lineWins){ totalWin += w.pay; w.cells.forEach(c=>winCells.add(c)); }
+
+    // Scatter
+    const scatPos = positionsOf(grid,"scatter");
+    if (scatPos.length>=3 && CONFIG.SCAT_PAY[Math.min(scatPos.length,5)]){
+      totalWin += CONFIG.SCAT_PAY[Math.min(scatPos.length,5)] * bet();
+      scatPos.forEach(p=>winCells.add(p));
+    }
+
+    if (totalWin>0){ highlightWins(winCells); sndWinSmall(); }
+    S.balance += totalWin; $("m-win").textContent=fmt(totalWin); refreshMeters();
+    if (totalWin>0) setBanner("贏 "+fmt(totalWin)+" 分！");
+
+    // 觸發判定（優先序：免費遊戲 > Hold&Spin > Bonus Game）
+    const coinPos  = positionsOf(grid,"coin");
+    const bonusPos = positionsOf(grid,"bonus");
+    if (scatPos.length>=CONFIG.FS_TRIGGER){
+      await scatterAnticipation(scatPos);  // 金元寶 3+ 直接進免費遊戲（自動不停）
+      await runFreeSpins();
+    } else if (coinPos.length>=CONFIG.HS_TRIGGER){
+      await runHoldAndSpin(coinPos);       // 金幣 6+ 直接觸發 Hold&Spin（自動不停）
+    } else if (bonusPos.length>=CONFIG.BONUS_TRIGGER){
+      if (S.auto) stopAuto();              // 白板 3+ → Bonus Game，自動停下交玩家選
+      await scatterAnticipation(bonusPos);
+      const choice = await enterBonus();   // 選寶箱 / 推筒子比牌
+      await routeBonus(choice);
+    } else {
+      await bigWinIfAny(totalWin);
+    }
+  } catch(err) {
+    console.error("doSpin error:", err);
+    setBanner("遊戲發生錯誤，請重試");
+    ["chooser","pickem","cardbattle","overlay"].forEach(id=>{ const el=$(id); if(el) el.classList.remove("show"); });
+    clearHeldTags();
+    if (S.auto) stopAuto();
+  } finally {
+    S.spinning=false; $("btn-spin").disabled=false;
+    if (S.auto && S.balance>=bet()){ setTimeout(doSpin, 500); }
+    else if (S.auto){ stopAuto(); }
+  }
+}
+
+/* 轉軸動畫：逐軸停止 */
+function animateSpin(){
+  return new Promise(resolve=>{
+    const finalGrid=[];
+    for (let r=0;r<CONFIG.REELS;r++){
+      const st=S.strips[r]; const pos=(Math.random()*st.length)|0;
+      finalGrid[r]=[ st[pos], st[(pos+1)%st.length], st[(pos+2)%st.length] ];
+    }
+    // 全部進入旋轉
+    for (let r=0;r<CONFIG.REELS;r++) for (let row=0;row<CONFIG.ROWS;row++){
+      cells[r][row].classList.add("blur"); cells[r][row].classList.remove("win","dim","held","scat");
+    }
+    const tickers=[];
+    for (let r=0;r<CONFIG.REELS;r++){
+      tickers[r]=setInterval(()=>{ for(let row=0;row<CONFIG.ROWS;row++) paintCell(cells[r][row], randSym()); cells[r][0].parentElement && null; }, 60);
+      // 旋轉中保持 blur
+      for(let row=0;row<CONFIG.ROWS;row++) cells[r][row].classList.add("blur");
+    }
+    let r=0;
+    const stopNext=()=>{
+      if (r>=CONFIG.REELS){ resolve(finalGrid); return; }
+      clearInterval(tickers[r]);
+      for (let row=0;row<CONFIG.ROWS;row++){ paintCell(cells[r][row], finalGrid[r][row]); cells[r][row].classList.remove("blur"); }
+      sndStop();
+      r++;
+      setTimeout(stopNext, 230);
+    };
+    setTimeout(stopNext, 520);
+  });
+}
+
+/* evaluateLines / positionsOf 由 engine.js 提供（含 BASE_PAY_SCALE） */
+function cellByCode(code){ return cells[code%10][(code/10)|0]; }
+function highlightWins(set){
+  for (let r=0;r<CONFIG.REELS;r++) for(let row=0;row<CONFIG.ROWS;row++) cells[r][row].classList.add("dim");
+  set.forEach(code=>{ const el=cellByCode(code); el.classList.remove("dim"); el.classList.add("win"); });
+  setTimeout(()=>{ for(let r=0;r<CONFIG.REELS;r++) for(let row=0;row<CONFIG.ROWS;row++) cells[r][row].classList.remove("dim"); }, 1100);
+}
+
+/* Scatter 差一點期待感 */
+function scatterAnticipation(scatPos){
+  return new Promise(res=>{
+    scatPos.slice(0,5).forEach((code,i)=>{ setTimeout(()=>{ cellByCode(code).classList.add("scat"); sndScatterTick(i); }, i*220); });
+    setTimeout(res, scatPos.length*220+300);
+  });
+}
+
+/* 大獎演出 */
+function tierOf(mult){
+  if (mult>=250) return "MAX WIN";
+  if (mult>=120) return "EPIC WIN";
+  if (mult>=60)  return "SUPER WIN";
+  if (mult>=30)  return "MEGA WIN";
+  if (mult>=15)  return "BIG WIN";
+  return null;
+}
+function bigWinIfAny(amount){
+  return new Promise(res=>{
+    const mult = amount / bet();
+    const tier = tierOf(mult);
+    if (!tier){ res(); return; }
+    showOverlay(tier, amount, res);
+  });
+}
+function showOverlay(tier, amount, done){
+  const ov=$("overlay"); $("ov-tier").textContent=tier;
+  ov.classList.add("show"); sndBigwin();
+  // 分數慢慢跳
+  const start=performance.now(), dur=1400;
+  function step(t){
+    const k=Math.min(1,(t-start)/dur);
+    $("ov-amt").textContent=fmt(amount*k);
+    if (k<1) requestAnimationFrame(step); else $("ov-amt").textContent=fmt(amount);
+  }
+  requestAnimationFrame(step);
+  const close=()=>{ ov.classList.remove("show"); ov.removeEventListener("click",close); done&&done(); };
+  setTimeout(()=>ov.addEventListener("click",close), 300);
+  setTimeout(()=>{ if(ov.classList.contains("show")) close(); }, 4200);
+}
+
+/* ---------- 免費遊戲 ---------- */
+async function runFreeSpins(){
+  let spins=CONFIG.FS_SPINS, multIdx=-1, fsTotal=0;
+  setBanner("免費遊戲觸發！"+spins+" 次", "fs");
+  sndJackpot();
+  await wait(900);
+  while (spins>0){
+    spins--;
+    S.balance && refreshMeters();
+    setBanner(`免費遊戲 剩 ${spins+1} 次　倍率 x${CONFIG.FS_MULT_STEPS[Math.max(0,multIdx)]||1}`, "fs");
+    const grid=await animateSpin(); S.grid=grid;
+    const winCells=new Set();
+    let win=0; const lws=evaluateLines(grid, lineBet());
+    let wildHit=false;
+    for (const w of lws){ if (w.cells.some(c=>grid[c%10][(c/10)|0]==="wild") || gridHasWild(grid)) wildHit=true; }
+    // 倍率：本轉有 Wild 參與得分 → 階梯 +1
+    let curMult=1;
+    if (lws.length>0 && gridHasWild(grid)){ multIdx=Math.min(multIdx+1, CONFIG.FS_MULT_STEPS.length-1); }
+    curMult = (multIdx>=0 ? CONFIG.FS_MULT_STEPS[multIdx] : 1) * CONFIG.FS_BONUS_MULT;
+    for (const w of lws){ win += w.pay*curMult; w.cells.forEach(c=>winCells.add(c)); }
+    const sp=positionsOf(grid,"scatter");
+    if (sp.length>=3 && CONFIG.SCAT_PAY[Math.min(sp.length,5)]){ win+=CONFIG.SCAT_PAY[Math.min(sp.length,5)]*bet()*CONFIG.FS_BONUS_MULT; sp.forEach(p=>winCells.add(p)); }
+    if (sp.length>=CONFIG.FS_TRIGGER){ spins+=CONFIG.FS_SPINS; } // 再觸發
+    if (win>0){ highlightWins(winCells); sndWinSmall(); fsTotal+=win; S.balance+=win; refreshMeters(); $("m-win").textContent=fmt(fsTotal); }
+    await wait(700);
+  }
+  setBanner("免費遊戲結束 共得 "+fmt(fsTotal)+" 分", "fs");
+  await bigWinIfAny(fsTotal);
+  await wait(400);
+}
+/* gridHasWild 由 engine.js 提供 */
+
+/* ---------- Hold & Spin（金幣鎖定 + 重置） ---------- */
+// 用 engine 的 rollCoin/coinValue；jackpot 取「即時累積池」S.jp（progressive，
+// 故實機賠付 ≥ sim 基底；sim 報的是 seed 值的 95% 基準 RTP）
+function makeCoinValue(){
+  const roll=rollCoin();
+  return {type:roll.type, val: coinValue(roll, bet(), S.jp)};
+}
+async function runHoldAndSpin(initialCoins){
+  setBanner("✦ HOLD & SPIN 觸發！ ✦","hs"); sndJackpot(); await wait(800);
+  // 鎖定盤面：locked[code]=coinObj
+  const locked={};
+  const lockCoin=(code)=>{
+    const cv=makeCoinValue(); locked[code]=cv;
+    const el=cellByCode(code); paintCell(el,"coin"); el.classList.add("held");
+    const tag=document.createElement("div"); tag.className="coinval"+(cv.type!=="val"?" jpk":"");
+    tag.textContent = cv.type==="val" ? fmt(cv.val) : cv.type.toUpperCase();
+    el.appendChild(tag); sndCoin();
+  };
+  // 清空非金幣格
+  for (let r=0;r<CONFIG.REELS;r++) for(let row=0;row<CONFIG.ROWS;row++){
+    const code=row*10+r; paintCell(cells[r][row], "K"); cells[r][row].classList.add("dim");
+  }
+  initialCoins.forEach(lockCoin);
+  let respins=CONFIG.HS_RESPINS;
+  const totalCells=CONFIG.REELS*CONFIG.ROWS;
+  while (respins>0 && Object.keys(locked).length<totalCells){
+    respins--;
+    setBanner(`HOLD & SPIN　剩 ${respins+1} 轉　已集 ${Object.keys(locked).length} 金幣`,"hs");
+    await wait(450);
+    // 旋轉空格
+    const empties=[];
+    for (let r=0;r<CONFIG.REELS;r++) for(let row=0;row<CONFIG.ROWS;row++){ const code=row*10+r; if(!(code in locked)) empties.push(code); }
+    // 動畫
+    const ticker=setInterval(()=>{ empties.forEach(code=>{ const el=cellByCode(code); el.classList.contains("held")||paintCell(el, Math.random()<0.5?"K":"Q"); el.classList.add("dim"); }); }, 70);
+    await wait(520); clearInterval(ticker);
+    // 結果：每個空格小機率出金幣
+    let newCoins=0;
+    for (const code of empties){
+      if (Math.random()<CONFIG.HS_NEW_COIN_PROB){ lockCoin(code); newCoins++; }
+      else { paintCell(cellByCode(code), "Q"); cellByCode(code).classList.add("dim"); }
+    }
+    if (newCoins>0) respins=CONFIG.HS_RESPINS; // 出新金幣 → 重置
+  }
+  // 結算
+  let sum=0, grand=false;
+  for (const code in locked) sum+=locked[code].val;
+  if (Object.keys(locked).length>=totalCells){ sum+=jackpotWin("grand",bet(),S.jp); grand=true; }
+  S.balance+=sum; refreshMeters(); $("m-win").textContent=fmt(sum);
+  const sub = bet()<MAX_BET ? "（非滿注，progressive 依比例）" : "";
+  setBanner((grand?"★ GRAND JACKPOT ★ ":"HOLD & SPIN 結束 ")+"共得 "+fmt(sum)+" 分"+sub,"hs");
+  resetWonJackpots(locked, grand);
+  await new Promise(res => showOverlay(grand?"GRAND WIN":"BONUS WIN", sum, res));
+  clearHeldTags();
+}
+function clearHeldTags(){ document.querySelectorAll(".coinval").forEach(e=>e.remove()); document.querySelectorAll(".cell.held").forEach(e=>e.classList.remove("held")); }
+function resetWonJackpots(locked, grand){
+  const won=new Set(Object.values(locked).map(c=>c.type));   // 只有 progressive（major/grand）需歸位
+  if (grand) S.jp.grand=CONFIG.JACKPOT.grand.base;
+  if (won.has("major")) S.jp.major=CONFIG.JACKPOT.major.base;
+  refreshMeters();
+}
+
+const wait = ms => new Promise(r=>setTimeout(r,ms));
+
+/* ---------- 控制 ---------- */
+$("btn-spin").addEventListener("click", doSpin);
+$("bet-up").addEventListener("click", ()=>{ if(S.spinning)return; S.betIdx=Math.min(S.betIdx+1,CONFIG.betLevels.length-1); refreshMeters(); });
+$("bet-dn").addEventListener("click", ()=>{ if(S.spinning)return; S.betIdx=Math.max(S.betIdx-1,0); refreshMeters(); });
+$("btn-auto").addEventListener("click", ()=>{ S.auto=!S.auto; const b=$("btn-auto"); b.classList.toggle("on",S.auto); b.textContent=S.auto?"自動 ■":"自動 ▶"; if(S.auto&&!S.spinning) doSpin(); });
+$("btn-snd").addEventListener("click", ()=>{ S.sound=!S.sound; const b=$("btn-snd"); b.classList.toggle("on",S.sound); b.textContent=S.sound?"音效 ♪":"音效 ✕"; });
+document.addEventListener("keydown", e=>{
+  if(e.code==="Space"){ e.preventDefault(); doSpin(); }
+  if(e.code==="Escape"){ $("paytable").classList.remove("show"); }
+});
+
+/* ============================================================
+   Bonus 選擇（波動性分層）+ 選寶箱 + 推筒子比牌
+   ============================================================ */
+/* BONUS_MODES 由 engine.js 提供 */
+const stars = n => "★".repeat(n)+"☆".repeat(4-n);
+const showBonusOv = id => $(id).classList.add("show");
+const hideBonusOv = id => $(id).classList.remove("show");
+
+function enterBonus(){
+  return new Promise(resolve=>{
+    const wrap=$("choices"); wrap.innerHTML=""; wrap.dataset.locked="";
+    BONUS_MODES.forEach(m=>{
+      const card=document.createElement("div"); card.className="choice vol"+m.vol;
+      card.innerHTML=`<div class="c-ic">${m.icon}</div><div class="c-nm">${m.name}</div>
+        <div class="c-vol">${stars(m.vol)}<br>${m.volTxt}</div>
+        <div class="c-max">${m.maxTxt}</div><div class="c-freq">${m.freqTxt}</div>`;
+      card.addEventListener("click",()=>{
+        if(wrap.dataset.locked) return; wrap.dataset.locked="1";
+        card.classList.add("picked"); sndCoin();
+        setTimeout(()=>{ hideBonusOv("chooser"); resolve(m.key); }, 480);
+      });
+      wrap.appendChild(card);
+    });
+    showBonusOv("chooser");
+  });
+}
+
+function randomCoinPositions(n){
+  const all=[]; for(let r=0;r<CONFIG.REELS;r++) for(let row=0;row<CONFIG.ROWS;row++) all.push(row*10+r);
+  for(let i=all.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [all[i],all[j]]=[all[j],all[i]]; }
+  return all.slice(0,n);
+}
+
+/* ---------- B. 選寶箱（低波動） ---------- */
+// makePickBoxes 由 engine 提供（固定炸彈數+獎項+洗牌）。
+// 累積點數 total（原始），畫面/賠付以 total*PICK_BONUS_MULT 並封頂 PICK.CAP，與 sim 一致。
+const pickCredit = total => Math.round(Math.min(total*CONFIG.PICK_BONUS_MULT, CONFIG.PICK.CAP) * bet());
+function revealBox(el,p,faded){
+  el.classList.add("open"); if(faded) el.classList.add("faded");
+  if (p.type==="bomb"){ el.textContent="💣"; el.classList.add("bomb"); }
+  else if (p.type==="mult"){ el.textContent="×"+p.val; el.classList.add("mult"); }
+  else { el.textContent="+"+p.val; }
+}
+async function runPickBonus(){
+  showBonusOv("pickem");
+  let total=0;
+  $("pe-total").textContent="0"; $("pe-hint").textContent="點開寶箱累積分數，翻到 💣 結束";
+  const grid=$("pe-grid"); grid.innerHTML="";
+  const boxes=makePickBoxes();   // engine：固定 3~4 炸彈
+  const els=[];
+  for(let i=0;i<boxes.length;i++){ const b=document.createElement("button"); b.className="pe-box"; b.textContent="?"; grid.appendChild(b); els.push(b); }
+  await new Promise(resolve=>{
+    let ended=false, opened=0;
+    const finish=(bomb)=>{ ended=true; if(bomb)sndStop();
+      els.forEach((e2,j)=>{ if(!e2.dataset.open){ e2.dataset.open="1"; revealBox(e2,boxes[j],true); } });
+      $("pe-hint").textContent=(bomb?"💣 結束！":"全部開完！")+"共得 "+fmt(pickCredit(total))+" 分";
+      setTimeout(resolve,1300);
+    };
+    els.forEach((el,i)=>el.addEventListener("click",()=>{
+      if (ended||el.dataset.open) return; el.dataset.open="1"; opened++;
+      const p=boxes[i]; revealBox(el,p);
+      if (p.type==="bomb"){ finish(true); return; }
+      if (p.type==="mult") total*=p.val; else total+=p.val;
+      $("pe-total").textContent=fmt(pickCredit(total)); sndCoin();
+      if (opened>=boxes.length) finish(false); // 安全網：全開也結束
+    }));
+  });
+  const award=pickCredit(total);
+  S.balance+=award; refreshMeters(); $("m-win").textContent=fmt(award);
+  await wait(300); hideBonusOv("pickem");
+  if (award>0){
+    await new Promise(res => showOverlay((award/bet())>=15 ? (tierOf(award/bet())||"BONUS WIN") : "BONUS WIN", award, res));
+  } else {
+    setBanner("選寶箱結束　本場無所得"); await wait(800);
+  }
+}
+
+/* ---------- D. 推筒子比牌（高波動） ---------- */
+// dealTiles / compareTiles 由 engine 提供
+const DICE=["","⚀","⚁","⚂","⚃","⚄","⚅"];
+function flipTiles(elId,hand,ptId){
+  return new Promise(res=>{
+    const el=$(elId); el.innerHTML="";
+    hand.t.forEach(v=>{ const d=document.createElement("div"); d.className="cb-tile"; d.textContent=DICE[v]; el.appendChild(d); });
+    $(ptId).textContent=(hand.pair?"對子・":"")+"點數 "+hand.pt+((hand.pair&&hand.t[0]===6)?"・天王!":"");
+    setTimeout(res,260);
+  });
+}
+function setCB(streak,total,hint){ $("cb-streak").textContent=streak; $("cb-mult").textContent=fmt(total); $("cb-hint").textContent=hint; }
+function flashJP(k){ const el=$("jp-"+k); if(el){ el.parentElement.classList.add("flash"); setTimeout(()=>el.parentElement.classList.remove("flash"),2400);} sndJackpot(); }
+async function runCardBattle(){
+  showBonusOv("cardbattle");
+  const STEP=CONFIG.CB.STEP, MULT=CONFIG.CB_BONUS_MULT, CAPc=CONFIG.CB.CAP*bet();
+  let raw=0, streak=0, jpC=0;                      // raw=連勝步進累積；jpC=天王對拿到的 jackpot(credits)
+  const payC = () => Math.min(Math.round(raw*MULT*bet()) + Math.round(jpC), CAPc);  // 本場賠付(credits)
+  const showM = () => Math.round(payC()/bet());    // 顯示用倍率
+  setCB(0,0,"準備比牌…"); await wait(700);
+  while(true){
+    setCB(streak,showM(),"發牌…");
+    const pl=dealTiles(), de=dealTiles();
+    await flipTiles("cb-dealer",de,"cb-dpt");
+    await flipTiles("cb-player",pl,"cb-ppt");
+    await wait(350);
+    if (compareTiles(pl,de)>0){
+      streak++;
+      raw += STEP[Math.min(streak-1,STEP.length-1)];
+      const tenwang = pl.pair && pl.t[0]===6;
+      if (tenwang){ jpC += jackpotWin("major", bet(), S.jp); flashJP("major"); }
+      setCB(streak,showM(), tenwang ? "★ 天王對！MAJOR JACKPOT ★" : "贏！連勝 "+streak);
+      sndWinSmall();
+      if (payC()>=CAPc){ setCB(streak,showM(),"達到上限 5000x！"); await wait(900); break; }
+      await wait(950);
+    } else {
+      setCB(streak,showM(),"莊家勝・比牌結束"); sndStop(); await wait(950); break;
+    }
+  }
+  const award=payC();
+  S.balance+=award; refreshMeters(); $("m-win").textContent=fmt(award);
+  await wait(300); hideBonusOv("cardbattle");
+  if (award>0){
+    await new Promise(res => showOverlay((award/bet())>=15 ? (tierOf(award/bet())||"BONUS WIN") : "BONUS WIN", award, res));
+  } else {
+    setBanner("比牌結束　本場無所得"); await wait(800);
+  }
+}
+
+async function routeBonus(key){
+  if (key==="pick") await runPickBonus();
+  else if (key==="cards") await runCardBattle();
+}
+
+/* ============================================================
+   賠率表 · 動態從 CONFIG 生成（與 engine.js 永遠同步）
+   ============================================================ */
+function buildPaytable(){
+  const SC=CONFIG.BASE_PAY_SCALE, L=CONFIG.LINES;
+  const SYM_ORDER=['wild','dragon','tiger','d6','d5','A','K','Q','J'];
+  let h='';
+
+  // ── 基礎線賠 ──
+  h+=`<div class="pt-sec"><div class="pt-sec-title">📊 基礎線賠（× 線注 ＝ 總注 ÷ ${L}）</div>
+  <table class="pt-table">
+    <tr><th>符號</th><th>名稱</th><th>3 連</th><th>4 連</th><th>5 連</th></tr>`;
+  for(const s of SYM_ORDER){
+    const def=CONFIG.SYM[s], p=CONFIG.PAY[s]; if(!p) continue;
+    const hi=s==='wild'?' pt-hl':'';
+    h+=`<tr>
+      <td><span class="${def.cls||''}" style="font-size:22px;line-height:1.2">${def.em}</span></td>
+      <td class="left${hi}">${def.nm}</td>
+      <td>${(p[3]*SC).toFixed(1)}</td>
+      <td>${(p[4]*SC).toFixed(1)}</td>
+      <td class="${s==='wild'?'pt-hl':''}">${(p[5]*SC).toFixed(1)}</td>
+    </tr>`;
+  }
+  h+=`</table>
+  <div class="pt-rule" style="margin-top:6px">💡 <b>財神 Wild</b> 可替代所有普通符號（不替代 Scatter / 金幣 / 白板）。同一轉可同時中多線。賠付線固定 ${L} 條，由左至右起算。</div>
+  </div>`;
+
+  // ── Scatter ──
+  h+=`<div class="pt-sec"><div class="pt-sec-title">💰 金元寶 Scatter 賠付（× 總注，散佈任意位置）</div>
+  <table class="pt-table">
+    <tr><th>出現數量</th><th>3 個</th><th>4 個</th><th>5 個</th></tr>
+    <tr><td>賠付倍率</td><td>${CONFIG.SCAT_PAY[3]}×</td><td>${CONFIG.SCAT_PAY[4]}×</td><td class="pt-hl">${CONFIG.SCAT_PAY[5]}×</td></tr>
+  </table>
+  <div class="pt-rule">🎰 3+ 個同時觸發 <b>免費遊戲</b>（直接進入，自動播放<b>不停止</b>）</div>
+  </div>`;
+
+  // ── 免費遊戲 ──
+  h+=`<div class="pt-sec"><div class="pt-sec-title">🎰 免費遊戲（Free Spins）</div>
+  <div class="pt-rule">
+  • 金元寶 3+ 觸發，共 <b>${CONFIG.FS_SPINS} 次</b>免費轉，自動播放<b>不停止</b><br>
+  • 本轉有 Wild 出現且參與得分 → 倍率階梯進一格：<b>${CONFIG.FS_MULT_STEPS.join(' → ')}×</b><br>
+  • 免費遊戲中再出現 3+ Scatter → <b>再觸發</b>，追加 ${CONFIG.FS_SPINS} 次（可無限疊加）<br>
+  • 整體放大倍率：<b>${CONFIG.FS_BONUS_MULT}×</b>
+  </div></div>`;
+
+  // ── Hold & Spin ──
+  h+=`<div class="pt-sec"><div class="pt-sec-title">🪙 Hold &amp; Spin（金幣）</div>
+  <div class="pt-rule">
+  • 基礎盤出現 <b>${CONFIG.HS_TRIGGER}+ 枚</b>金幣觸發，自動播放<b>不停止</b><br>
+  • 鎖住所有金幣，空格重轉 <b>${CONFIG.HS_RESPINS} 次</b>；出現新金幣重置為 ${CONFIG.HS_RESPINS} 次<br>
+  • 一般金幣面值：<b>${CONFIG.HS_VAL_TABLE.filter((v,i,a)=>a.indexOf(v)===i).join('× / ')}×</b> 總注<br>
+  • 特殊金幣：<span class="pt-badge mini-b">MINI</span> <span class="pt-badge minor-b">MINOR</span> <span class="pt-badge major-b">MAJOR</span> 直接拿到對應 Jackpot<br>
+  • 集滿全部 <b>${CONFIG.REELS*CONFIG.ROWS} 格</b>：額外觸發 <span class="pt-badge grand-b">GRAND JACKPOT</span>
+  </div></div>`;
+
+  // ── Jackpot ──
+  h+=`<div class="pt-sec"><div class="pt-sec-title">👑 四層 Jackpot</div>
+  <div class="pt-rule">
+  <span class="pt-badge mini-b">MINI</span>&nbsp; <b>固定 ${CONFIG.JACKPOT.mini.mult}×</b> 總注，隨押注放大，永遠全拿<br>
+  <span class="pt-badge minor-b">MINOR</span> <b>固定 ${CONFIG.JACKPOT.minor.mult}×</b> 總注，隨押注放大，永遠全拿<br>
+  <span class="pt-badge major-b">MAJOR</span> Progressive，起始 <b>${CONFIG.JACKPOT.major.base.toLocaleString()}</b>，上限 ${CONFIG.JACKPOT.major.cap.toLocaleString()}<br>
+  <span class="pt-badge grand-b">GRAND</span> Progressive，起始 <b>${CONFIG.JACKPOT.grand.base.toLocaleString()}</b>，上限 ${CONFIG.JACKPOT.grand.cap.toLocaleString()}<br>
+  <br>
+  ⚠️ MAJOR / GRAND 為絕對金額；<b>下滿注（${MAX_BET}）才全拿</b>顯示池值，其餘押注依比例（× 押注 ÷ ${MAX_BET}）<br>
+  每注累積：MAJOR +${CONFIG.JP_CONTRIB.major*100}%，GRAND +${CONFIG.JP_CONTRIB.grand*100}%
+  </div></div>`;
+
+  // ── Bonus Game ──
+  h+=`<div class="pt-sec"><div class="pt-sec-title">🀆 Bonus Game（白板，二選一）</div>
+  <div class="pt-rule">
+  • 白板 🀆 出現 <b>${CONFIG.BONUS_TRIGGER}+ 個</b>觸發，<b>自動停下</b>讓玩家二選一<br><br>
+  <b>🎁 A. 選寶箱（低波動）</b><br>
+  ${CONFIG.PICK.COUNT} 格寶箱，依序點開累積獎分；翻到 💣 立刻結束。<br>
+  獎格：+1 / +2 / +3 / +5 / +8 / +12 倍 &nbsp;│&nbsp; 特殊：×2 倍率格<br>
+  封頂：<b>${CONFIG.PICK.CAP}×</b> 總注 &nbsp;│&nbsp; 勝率高、起伏小<br><br>
+  <b>🀄 B. 推筒子比牌（高波動）</b><br>
+  閒家 vs 莊家，各擲兩骰取點數（個位數）<br>
+  對子 &gt; 散牌 &nbsp;│&nbsp; 同點或同對：莊家勝（莊家優勢）<br>
+  連勝累加步進：<b>${CONFIG.CB.STEP.slice(0,7).map(v=>v+'×').join(' → ')} …</b><br>
+  雙六天王對勝 → 額外獎勵 <span class="pt-badge major-b">MAJOR JACKPOT</span><br>
+  封頂：<b>${CONFIG.CB.CAP}×</b> 總注（全機最大獎）&nbsp;│&nbsp; 一輸即結束
+  </div></div>`;
+
+  // ── 遊戲資訊 ──
+  h+=`<div class="pt-sec"><div class="pt-sec-title">ℹ️ 遊戲資訊</div>
+  <div class="pt-rule">
+  RTP ≈ <b>94.4%</b>（Bonus Game 二模式等期望值，sim.cjs 600 萬轉校準）<br>
+  盤面：<b>${CONFIG.REELS} × ${CONFIG.ROWS}</b> 格 &nbsp;│&nbsp; 賠付線：<b>${CONFIG.LINES} 線</b>（固定，左至右連續）<br>
+  押注級別：<b>${CONFIG.betLevels.join(' ／ ')}</b><br>
+  觸發優先序：<b>免費遊戲 ＞ Hold&amp;Spin ＞ Bonus Game</b><br>
+  <br>
+  ＊本頁面為可玩原型，所有數值由 engine.js 單一真相源驅動，與 RTP 模擬器（sim.cjs）共用相同數學邏輯。
+  </div></div>`;
+
+  // ── 重置按鈕 ──
+  h+=`<div style="text-align:center;padding-bottom:20px">
+  <button class="pt-reset" id="btn-reset">↺ 重置餘額（補充至 ${CONFIG.startBalance.toLocaleString()} 分）</button>
+  </div>`;
+
+  $("pt-content").innerHTML=h;
+  $("btn-reset").addEventListener("click",()=>{
+    if(S.spinning) return;
+    S.balance=CONFIG.startBalance; refreshMeters();
+    setBanner("餘額已重置！繼續遊戲");
+    $("paytable").classList.remove("show");
+  });
+}
+
+$("btn-pt").addEventListener("click", ()=>{ buildPaytable(); $("paytable").classList.add("show"); });
+$("btn-pt-close").addEventListener("click", ()=>$("paytable").classList.remove("show"));
+
+/* ---------- 初始化 ---------- */
+S.strips = STRIPS;            // 固定轉軸帶（engine 單一真相源，與 sim 一致）
+buildDOM();
+for (let r=0;r<CONFIG.REELS;r++) for(let row=0;row<CONFIG.ROWS;row++) paintCell(cells[r][row], randSym());
+refreshMeters();
+</script>
+</body>
+</html>
