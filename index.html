@@ -477,6 +477,7 @@ function stopAuto(){ S.auto=false; const b=$("btn-auto"); b.classList.remove("on
 
 async function doSpin(){
   if (S.spinning) return;
+  if (SERVER_MODE) return doSpinServer(null);   // 伺服器權威模式：結果來自 /spin
   // 餘額不足最低押注時自動補充（原型模式）
   if (S.balance < CONFIG.betLevels[0]){
     S.balance = CONFIG.startBalance; refreshMeters(); setBanner("餘額已補充，繼續遊戲！");
@@ -546,12 +547,15 @@ async function doSpin(){
 }
 
 /* 轉軸動畫：逐軸停止 */
-function animateSpin(){
+function animateSpin(targetGrid){
   return new Promise(resolve=>{
-    const finalGrid=[];
-    for (let r=0;r<CONFIG.REELS;r++){
-      const st=S.strips[r]; const pos=(Math.random()*st.length)|0;
-      finalGrid[r]=[ st[pos], st[(pos+1)%st.length], st[(pos+2)%st.length] ];
+    let finalGrid;
+    if (targetGrid){ finalGrid = targetGrid; }   // 伺服器模式：畫伺服器給的權威盤面
+    else { finalGrid=[];                          // 免費模式：本地隨機（engine 在前端）
+      for (let r=0;r<CONFIG.REELS;r++){
+        const st=S.strips[r]; const pos=(Math.random()*st.length)|0;
+        finalGrid[r]=[ st[pos], st[(pos+1)%st.length], st[(pos+2)%st.length] ];
+      }
     }
     // 全部進入旋轉
     for (let r=0;r<CONFIG.REELS;r++) for (let row=0;row<CONFIG.ROWS;row++){
@@ -884,6 +888,7 @@ function openBuyMenu(){
   showBonusOv("buymenu");
 }
 async function buyFeature(key){
+  if (SERVER_MODE){ hideBonusOv("buymenu"); return doSpinServer(key); }   // 伺服器權威購買
   const cost=buyCost(key,bet());
   if (S.balance<cost){ setBanner("餘額不足，無法購買"); return; }
   ac();
@@ -1136,11 +1141,150 @@ function buildPaytable(){
 $("btn-pt").addEventListener("click", ()=>{ buildPaytable(); $("paytable").classList.add("show"); });
 $("btn-pt-close").addEventListener("click", ()=>$("paytable").classList.remove("show"));
 
+/* ============================================================
+   伺服器權威模式（保留原版全部視覺；結果來自 RGS /spin，前端只演）
+   偵測：由 RGS(:8760) 服務 或 網址帶 ?server=1 → 啟用。
+   免費模式（GitHub Pages 等）不受影響：上方 doSpin 原邏輯照跑。
+   ============================================================ */
+const SERVER_MODE = (location.port === "8760") || new URLSearchParams(location.search).has("server");
+let SID = null;
+const api = (p, b) => fetch(p, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(b) }).then(r=>r.json());
+
+async function doSpinServer(buyMode){
+  if (S.spinning) return;
+  ac(); S.spinning=true; $("btn-spin").disabled=true; if($("btn-buy")) $("btn-buy").disabled=true;
+  $("m-win").textContent="0"; setBanner(buyMode?"購買特色…":"轉動中…");
+  try{
+    let r = await api("/spin", { sessionId:SID, bet:bet(), buyMode:buyMode||undefined });
+    if (r.errorCode!==0){ setBanner("伺服器錯誤 "+r.errorCode+"："+(r.error||"")); return; }
+    if (r.pending==="bonus"){
+      if (S.auto) stopAuto();
+      const choice = await enterBonus();              // 沿用原本二選一 overlay
+      r = await api("/bonus/choose", { sessionId:SID, choice });
+      if (r.errorCode!==0){ setBanner("伺服器錯誤 "+r.errorCode); return; }
+    }
+    await replayResult(r);
+    S.balance = r.balance; refreshMeters();
+  } catch(err){
+    console.error("server spin error", err); setBanner("連線錯誤，請重試");
+    ["chooser","pickem","cardbattle","overlay","buymenu"].forEach(id=>{ const el=$(id); if(el) el.classList.remove("show"); });
+    clearHeldTags(); guardiansReset(); clearBeams(); $("g-flash").classList.remove("on");
+    if (S.auto) stopAuto();
+  } finally {
+    S.spinning=false; $("btn-spin").disabled=false; if($("btn-buy")) $("btn-buy").disabled=false;
+    if (S.auto && S.balance>=bet()) setTimeout(()=>doSpinServer(null), 650); else if (S.auto) stopAuto();
+  }
+}
+
+// 依伺服器 timeline 演出（前端不算分）
+async function replayResult(r){
+  const hasFeature = r.timeline.some(s=>s.type!=="spin");
+  for (const step of r.timeline){
+    if (step.type==="spin"){
+      await animateSpin(step.grid); S.grid=step.grid;
+      const winCells=new Set(); (step.lineWins||[]).forEach(w=>w.cells.forEach(c=>winCells.add(c)));
+      if (!hasFeature) await maybeGuardianCast(step.grid, step.lineWins||[], r.breakdown.base);  // 龍虎純表演（不影響結果）
+      if (winCells.size){ highlightWins(winCells); sndWinSmall(); }
+      if (r.breakdown.base>0) setBanner("贏 "+fmt(r.breakdown.base)+" 分！");
+    }
+    else if (step.type==="fs") await replayFS(step);
+    else if (step.type==="hs") await replayHS(step);
+    else if (step.type==="bonus_pick") await replayPick(step);
+    else if (step.type==="bonus_cards") await replayCards(step);
+  }
+  $("m-win").textContent=fmt(r.win);
+  if (r.win>0) setBanner("本局共得 "+fmt(r.win)+" 分！");
+  await bigWinIfAny(r.win);
+}
+
+async function replayFS(fs){
+  setBanner("免費遊戲觸發！"+fs.steps.length+" 轉","fs"); sndJackpot(); await wait(800);
+  let acc=0;
+  for (let i=0;i<fs.steps.length;i++){
+    const st=fs.steps[i];
+    setBanner(`免費遊戲 ${i+1}/${fs.steps.length}　倍率 x${st.mult}`,"fs");
+    await animateSpin(st.grid);
+    if (st.win>0){
+      const lws=evaluateLines(st.grid, lineBet()); const wc=new Set(); lws.forEach(w=>w.cells.forEach(c=>wc.add(c)));
+      if (wc.size) highlightWins(wc);
+      sndWinSmall(); acc+=st.win; $("m-win").textContent=fmt(acc);
+    }
+    await wait(600);
+  }
+  setBanner("免費遊戲結束 共得 "+fmt(fs.bonus+fs.jackpot)+" 分","fs"); await wait(500);
+}
+
+async function replayHS(hs){
+  setBanner("✦ HOLD & SPIN 觸發！ ✦","hs"); sndJackpot(); await wait(700);
+  for (let r=0;r<CONFIG.REELS;r++) for(let row=0;row<CONFIG.ROWS;row++){ paintCell(cells[r][row],"K"); cells[r][row].classList.add("dim"); }
+  const lockCoin=(c)=>{ const el=cellByCode(c.code); paintCell(el,"coin"); el.classList.remove("dim"); el.classList.add("held");
+    const tag=document.createElement("div"); tag.className="coinval"+(c.type!=="val"?" jpk":""); tag.textContent=c.type==="val"?fmt(c.val):c.type.toUpperCase(); el.appendChild(tag); sndCoin(); };
+  hs.startCells.forEach(lockCoin); await wait(500);
+  for (const st of hs.steps){ setBanner(`HOLD & SPIN　已集 ${st.locked} 金幣`,"hs"); await wait(420); st.added.forEach(lockCoin); if(st.added.length) await wait(380); }
+  const award=hs.bonus+hs.jackpot;
+  setBanner((hs.grand?"★ GRAND JACKPOT ★ ":"HOLD & SPIN 結束 ")+"共得 "+fmt(award)+" 分","hs");
+  $("m-win").textContent=fmt(award);
+  await new Promise(res=>showOverlay(hs.grand?"GRAND WIN":"BONUS WIN", award, res));
+  clearHeldTags();
+}
+
+async function replayPick(pick){
+  showBonusOv("pickem");
+  $("pe-total").textContent="0"; $("pe-hint").textContent="龍虎為你開箱…";
+  const grid=$("pe-grid"); grid.innerHTML=""; const els=[];
+  for (let i=0;i<pick.boxes.length;i++){ const b=document.createElement("button"); b.className="pe-box"; b.textContent="?"; grid.appendChild(b); els.push(b); }
+  for (const idx of pick.order){
+    const p=pick.boxes[idx], el=els[idx]; el.classList.add("open");
+    if (p.type==="bomb"){ el.textContent="💣"; el.classList.add("bomb"); sndStop(); }
+    else if (p.type==="mult"){ el.textContent="×"+p.val; el.classList.add("mult"); sndCoin(); }
+    else { el.textContent="+"+p.val; sndCoin(); }
+    await wait(420);
+  }
+  els.forEach((e,j)=>{ if(!e.classList.contains("open")){ const p=pick.boxes[j]; e.classList.add("open","faded"); e.textContent=p.type==="bomb"?"💣":(p.type==="mult"?"×"+p.val:"+"+p.val); } });
+  $("pe-total").textContent=fmt(pick.bonus); $("pe-hint").textContent="共得 "+fmt(pick.bonus)+" 分";
+  await wait(900); hideBonusOv("pickem");
+  if (pick.bonus>0) await new Promise(res=>showOverlay((pick.bonus/bet())>=15?(tierOf(pick.bonus/bet())||"BONUS WIN"):"BONUS WIN", pick.bonus, res));
+}
+
+async function replayCards(cards){
+  showBonusOv("cardbattle"); setCB(0,0,"龍虎為你比牌…"); await wait(600);
+  const award=cards.bonus+cards.jackpot, showM=Math.round(award/bet());
+  let streak=0;
+  for (const rd of cards.rounds){
+    const mk=(arr)=>({t:arr,pt:(arr[0]+arr[1])%10,pair:arr[0]===arr[1]});
+    await flipTiles("cb-dealer", mk(rd.de), "cb-dpt");
+    await flipTiles("cb-player", mk(rd.pl), "cb-ppt");
+    await wait(350);
+    if (rd.lost){ setCB(streak, showM, "莊家勝・比牌結束"); sndStop(); await wait(800); break; }
+    streak=rd.streak;
+    if (rd.tenwang){ flashJP("major"); setCB(streak, showM, "★ 天王對！MAJOR JACKPOT ★"); }
+    else setCB(streak, showM, "贏！連勝 "+streak);
+    sndWinSmall(); await wait(800);
+  }
+  $("m-win").textContent=fmt(award); await wait(300); hideBonusOv("cardbattle");
+  if (award>0) await new Promise(res=>showOverlay((award/bet())>=15?(tierOf(award/bet())||"BONUS WIN"):"BONUS WIN", award, res));
+  else { setBanner("比牌結束　本場無所得"); await wait(800); }
+}
+
+async function serverLaunch(){
+  try{
+    const L = await api("/launch", { gameMode:1 });
+    if (L.errorCode!==0){ setBanner("啟動失敗 "+L.errorCode); return; }
+    SID=L.sessionId; S.balance=L.balance;
+    const tb=L.game?.betting?.totalBetByLevel, def=L.game?.betting?.default?.[0];
+    if (tb && def!=null){ const idx=CONFIG.betLevels.indexOf(tb[String(def)]); if(idx>=0) S.betIdx=idx; }
+    if (L.game?.jackpot?.pool){ S.jp.major=L.game.jackpot.pool.major; S.jp.grand=L.game.jackpot.pool.grand; }
+    refreshMeters(); setBanner("伺服器權威模式 · 按 SPIN 開始");
+    const sm=document.querySelector(".title small"); if(sm) sm.innerHTML+="　<span style='color:#9dffd0'>● 伺服器權威</span>";
+  } catch(e){ console.error(e); setBanner("無法連線伺服器"); }
+}
+
 /* ---------- 初始化 ---------- */
 S.strips = STRIPS;            // 固定轉軸帶（engine 單一真相源，與 sim 一致）
 buildDOM();
 for (let r=0;r<CONFIG.REELS;r++) for(let row=0;row<CONFIG.ROWS;row++) paintCell(cells[r][row], randSym());
 refreshMeters();
+if (SERVER_MODE) serverLaunch();
 </script>
 </body>
 </html>
