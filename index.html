@@ -243,6 +243,11 @@
     60%{transform:scale(1.1) rotate(5deg);}100%{transform:scale(1);}}
   .cell.decoy .em{ filter:grayscale(.35) brightness(.82);}
   .cell.tease-target{ box-shadow:0 0 0 2px #ffd24d inset, 0 0 14px rgba(255,210,80,.6);}
+  .spell-beam{ position:fixed; height:5px; transform-origin:0 50%; z-index:46; pointer-events:none;
+    border-radius:4px; filter:blur(.4px) drop-shadow(0 0 7px #ffd24d);
+    animation:beampulse .42s ease-in-out infinite;}
+  @keyframes beampulse{0%,100%{opacity:.5; height:4px;}50%{opacity:1; height:8px;}}
+  .spell-beam.out{ opacity:0; transition:opacity .25s ease;}
   .g-flash{ position:fixed; inset:0; z-index:44; pointer-events:none; opacity:0;
     background:radial-gradient(circle at 50% 58%, rgba(255,220,120,.4), transparent 62%);}
   .g-flash.on{ animation:gflash .6s ease;}
@@ -377,10 +382,10 @@ const lineBet = () => bet() / CONFIG.LINES;
 
 /* 龍虎施法演出（純表演層）調校旋鈕 — 不在 engine，故與 RTP 完全無關 */
 const TEASE = {
-  winRate:  0.18,      // 有連線時施法「補齊」的機率
-  lossRate: 0.025,     // 沒中時演「差點」的機率（須存在自然差點線）
+  winRate:  0.50,      // 有連線時施法「補齊」的機率
+  lossRate: 0.07,      // 沒中時演「差點」的機率（須存在自然差點線，實際打折）
   alwaysIfMultGE: 15,  // 大獎(≥15x)必演
-};                     // 綜合觸發 ≈ 0.18×26% + 0.025×74% ≈ 6.5%（學賽特 5-8%）
+};                     // 實測綜合觸發 ≈ 15%（loss 受 near-miss 閘門折扣）
 
 /* ---------- DOM ---------- */
 const $ = id => document.getElementById(id);
@@ -504,7 +509,7 @@ async function doSpin(){
     console.error("doSpin error:", err);
     setBanner("遊戲發生錯誤，請重試");
     ["chooser","pickem","cardbattle","overlay"].forEach(id=>{ const el=$(id); if(el) el.classList.remove("show"); });
-    clearHeldTags(); guardiansReset(); $("g-flash").classList.remove("on");
+    clearHeldTags(); guardiansReset(); clearBeams(); $("g-flash").classList.remove("on");
     if (S.auto) stopAuto();
   } finally {
     S.spinning=false; $("btn-spin").disabled=false;
@@ -844,6 +849,25 @@ function guardiansToCenter(){ ["g-dragon","g-tiger"].forEach(id=>$(id).classList
 function guardiansCast(){ ["g-dragon","g-tiger"].forEach(id=>$(id).classList.add("cast")); }
 function guardiansReset(){ ["g-dragon","g-tiger"].forEach(id=>$(id).classList.remove("center","cast")); }
 
+// 施法光束：從守護神中心連到目標牌格（純表演）
+function fireBeam(fromEl, toEl, grad){
+  const fr=fromEl.getBoundingClientRect(), tr=toEl.getBoundingClientRect();
+  const x1=fr.left+fr.width/2, y1=fr.top+fr.height/2;
+  const x2=tr.left+tr.width/2, y2=tr.top+tr.height/2;
+  const dx=x2-x1, dy=y2-y1;
+  const len=Math.hypot(dx,dy), ang=Math.atan2(dy,dx)*180/Math.PI;
+  const b=document.createElement("div");
+  b.className="spell-beam";
+  b.style.cssText=`left:${x1}px; top:${y1}px; width:${len}px; transform:rotate(${ang}deg); background:${grad};`;
+  document.body.appendChild(b);
+  return b;
+}
+function clearBeams(){
+  document.querySelectorAll(".spell-beam").forEach(b=>{
+    b.classList.add("out"); setTimeout(()=>b.remove(), 260);
+  });
+}
+
 // 變牌動畫：循環數次後落定 realSym；excludeSym 永不出現（輸局防假連線）
 function morphCell(code, realSym, excludeSym){
   return new Promise(res=>{
@@ -908,10 +932,14 @@ async function maybeGuardianCast(grid, lineWins, totalWin){
   await wait(560);
   guardiansCast();
   $("g-flash").classList.add("on"); sndCoin();
+  // 龍虎合擊：兩道光束射向目標牌格
+  fireBeam($("g-dragon"), el, "linear-gradient(90deg, rgba(120,220,255,0), rgba(150,230,255,.95), #fff)");
+  fireBeam($("g-tiger"),  el, "linear-gradient(90deg, rgba(255,160,90,0), rgba(255,185,95,.95), #fff)");
   setBanner(mode==="win" ? "✦ 龍虎顯靈 · 補齊連線！✦" : "龍虎施法中…", mode==="win"?"fs":"");
   await wait(440);
   el.classList.remove("tease-target");
   await morphCell(code, realSym, excludeSym);
+  clearBeams();
   $("g-flash").classList.remove("on");
   await wait(mode==="win"?320:200);
   guardiansReset();   // 滑回兩側、恢復常駐呼吸
