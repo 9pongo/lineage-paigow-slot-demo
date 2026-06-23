@@ -270,6 +270,30 @@
     background:radial-gradient(circle at 50% 58%, rgba(255,220,120,.4), transparent 62%);}
   .g-flash.on{ animation:gflash .6s ease;}
   @keyframes gflash{0%,100%{opacity:0;}38%{opacity:1;}}
+
+  /* ===== 推筒子下注（莊／初／川／尾 四門佈局）===== */
+  .pg-stat{ font-size:13px; color:#ffd86b; text-align:center; margin-bottom:8px; min-height:18px; font-weight:800;}
+  .pg-table{ width:min(420px,94vw); display:flex; flex-direction:column; align-items:center; gap:8px;}
+  .pg-mid{ display:flex; align-items:center; justify-content:center; gap:10px; width:100%;}
+  .pg-fountain{ width:96px; height:96px; border-radius:50%; flex:0 0 auto; display:flex; align-items:center;
+    justify-content:center; text-align:center; font-size:13px; font-weight:900; color:var(--gold);
+    background:radial-gradient(circle at 50% 35%,#2a4a6a,#0e2236); border:2px solid #3a6a8a;
+    box-shadow:0 0 14px rgba(90,160,220,.4) inset;}
+  .pg-seat{ flex:1; min-width:96px; max-width:130px; border-radius:12px; padding:8px 6px; text-align:center;
+    background:linear-gradient(180deg,#241a40,#140e26); border:2px solid #3a2c63; transition:transform .12s, border-color .2s, box-shadow .2s;}
+  .pg-seat.banker{ border-color:#c0203a; background:linear-gradient(180deg,#3a1622,#1a0c12); align-self:center;}
+  .pg-seat.gate{ cursor:pointer;}
+  .pg-seat.gate:hover{ transform:translateY(-3px); border-color:var(--gold2);}
+  .pg-seat.picked{ border-color:var(--gold); box-shadow:0 0 14px rgba(247,215,116,.5);}
+  .pg-seat.won{ border-color:#46d36b; box-shadow:0 0 16px rgba(70,211,107,.55);}
+  .pg-seat.lost{ opacity:.5; border-style:dashed;}
+  .pg-lab{ font-size:13px; font-weight:900; color:#fff; margin-bottom:5px;}
+  .pg-banker .pg-lab,.pg-seat.banker .pg-lab{ color:#ff8da0;}
+  .pg-tiles{ display:flex; gap:6px; justify-content:center;}
+  .pg-tile{ width:34px; height:46px; border-radius:7px; display:flex; align-items:center; justify-content:center;
+    font-size:14px; font-weight:900; background:#fff6e0; color:#3a1e00; border:2px solid var(--gold2); animation:zoom .25s ease;}
+  .pg-tile.down{ background:linear-gradient(135deg,#1d6b3a,#0e3a1e); border-color:#0a2814; color:transparent;}
+  .pg-pt{ font-size:11px; font-weight:800; color:#ffd86b; margin-top:5px; min-height:14px;}
 </style>
 </head>
 <body>
@@ -322,9 +346,10 @@
   </div>
 
   <div class="foot">
-    數值由 <b>engine.js</b> 單一真相源驅動，<b>RTP ≈ 94.4%</b>（sim.cjs：Bonus Game 二模式等 EV）。規格：廠商需求第 9 點。<br>
-    金元寶 3+ → 免費遊戲(直接進入)　·　金幣 6+ → Hold&Spin(直接)　·　<b>白板 3+ → Bonus Game</b> 二選一(選寶箱／推筒子比牌)<br>
-    mini/minor 固定×注；major/grand 累積有上限，<b>滿注全拿、否則依比例</b>　·　集滿 15 格＝GRAND
+    數值由 <b>engine.js + paigow.js</b> 單一真相源驅動，<b>RTP ≈ 94.7%</b>（recalib.cjs 校準）。<br>
+    金元寶 3+ → 免費遊戲　·　金幣 6+ → Hold&Spin　·　<b>白板 3+ → 選寶箱</b><br>
+    <b>免費遊戲中出現白板</b> → 結束後帶全額進<b>推筒子加成</b>(玩 3 局，門勝×2／天王×4／輸保本×1，連乘)<br>
+    <b>購買 ⚡ = 推筒子</b>(2000，壓一門：門勝×10／天王×100)　·　mini/minor 固定×注；major/grand 滿注全拿否則依比例
   </div>
 </div>
 
@@ -369,6 +394,22 @@
   <div class="bonus-sub" id="cb-hint">比牌中…</div>
 </div>
 
+<!-- 推筒子下注（莊／初／川／尾 四門，附圖佈局）-->
+<div class="bonus-ov" id="paigow">
+  <div class="bonus-head" id="pg-head">🀄 推筒子</div>
+  <div class="pg-stat" id="pg-stat"></div>
+  <div class="pg-table">
+    <div class="pg-seat banker" id="pg-banker"><div class="pg-lab">莊家</div><div class="pg-tiles" id="pg-t-banker"></div><div class="pg-pt" id="pg-p-banker"></div></div>
+    <div class="pg-mid">
+      <div class="pg-seat gate" id="pg-chu" data-gate="chu"><div class="pg-lab">初門</div><div class="pg-tiles" id="pg-t-chu"></div><div class="pg-pt" id="pg-p-chu"></div></div>
+      <div class="pg-fountain" id="pg-center">請下注</div>
+      <div class="pg-seat gate" id="pg-wei" data-gate="wei"><div class="pg-lab">尾門</div><div class="pg-tiles" id="pg-t-wei"></div><div class="pg-pt" id="pg-p-wei"></div></div>
+    </div>
+    <div class="pg-seat gate" id="pg-chuan" data-gate="chuan"><div class="pg-lab">川門</div><div class="pg-tiles" id="pg-t-chuan"></div><div class="pg-pt" id="pg-p-chuan"></div></div>
+  </div>
+  <div class="bonus-sub" id="pg-hint">選一門下注</div>
+</div>
+
 <!-- 龍虎施法全屏閃光（純表演層） -->
 <div class="g-flash" id="g-flash"></div>
 
@@ -381,6 +422,7 @@
   <div class="pt-wrap" id="pt-content"></div>
 </div>
 
+<script src="paigow.js"></script>
 <script src="engine.js"></script>
 <script>
 "use strict";
@@ -526,10 +568,8 @@ async function doSpin(){
     } else if (coinPos.length>=CONFIG.HS_TRIGGER){
       await runHoldAndSpin(coinPos);       // 金幣 6+ 直接觸發 Hold&Spin（自動不停）
     } else if (bonusPos.length>=CONFIG.BONUS_TRIGGER){
-      if (S.auto) stopAuto();              // 白板 3+ → Bonus Game，自動停下交玩家選
-      await scatterAnticipation(bonusPos);
-      const choice = await enterBonus();   // 選寶箱 / 推筒子比牌
-      await routeBonus(choice);
+      await scatterAnticipation(bonusPos); // 白板 3+ → 直接進選寶箱（改版：不再二選一）
+      await runPickBonus();
     } else {
       await bigWinIfAny(totalWin);
     }
@@ -631,7 +671,7 @@ function showOverlay(tier, amount, done){
 
 /* ---------- 免費遊戲 ---------- */
 async function runFreeSpins(){
-  let spins=CONFIG.FS_SPINS, multIdx=-1, fsTotal=0;
+  let spins=CONFIG.FS_SPINS, multIdx=-1, fsTotal=0, bonusSeen=false;
   setBanner("免費遊戲觸發！"+spins+" 次", "fs");
   sndJackpot();
   await wait(900);
@@ -642,21 +682,31 @@ async function runFreeSpins(){
     const grid=await animateSpin(); S.grid=grid;
     const winCells=new Set();
     let win=0; const lws=evaluateLines(grid, lineBet());
-    let wildHit=false;
-    for (const w of lws){ if (w.cells.some(c=>grid[c%10][(c/10)|0]==="wild") || gridHasWild(grid)) wildHit=true; }
-    // 倍率：本轉有 Wild 參與得分 → 階梯 +1
     let curMult=1;
     if (lws.length>0 && gridHasWild(grid)){ multIdx=Math.min(multIdx+1, CONFIG.FS_MULT_STEPS.length-1); }
     curMult = (multIdx>=0 ? CONFIG.FS_MULT_STEPS[multIdx] : 1) * CONFIG.FS_BONUS_MULT;
     for (const w of lws){ win += w.pay*curMult; w.cells.forEach(c=>winCells.add(c)); }
     const sp=positionsOf(grid,"scatter");
     if (sp.length>=3 && CONFIG.SCAT_PAY[Math.min(sp.length,5)]){ win+=CONFIG.SCAT_PAY[Math.min(sp.length,5)]*bet()*CONFIG.FS_BONUS_MULT; sp.forEach(p=>winCells.add(p)); }
+    if (positionsOf(grid,"bonus").length>=CONFIG.BONUS_TRIGGER){ bonusSeen=true; cellByCode((positionsOf(grid,"bonus")[0])); }  // 白板3+ → FS後推筒子加成
     if (sp.length>=CONFIG.FS_TRIGGER){ spins+=CONFIG.FS_SPINS; } // 再觸發
     if (win>0){ highlightWins(winCells); sndWinSmall(); fsTotal+=win; S.balance+=win; refreshMeters(); $("m-win").textContent=fmt(fsTotal); }
     await wait(700);
   }
   setBanner("免費遊戲結束 共得 "+fmt(fsTotal)+" 分", "fs");
-  await bigWinIfAny(fsTotal);
+  await wait(500);
+  // 改版：FS 中曾出現白板 → 帶 FS 全額進推筒子加成（K=3，門勝×2/天王×4/輸保本×1）
+  if (bonusSeen && fsTotal>0){
+    setBanner("✦ 白板降臨！帶獎金進推筒子加成 ✦","fs"); sndJackpot(); await wait(900);
+    const { mult, final } = await runPaigowMultiplier(fsTotal);
+    const delta = final - fsTotal;
+    if (delta>0){ S.balance += delta; refreshMeters(); }
+    $("m-win").textContent=fmt(final);
+    setBanner(`推筒子加成 ×${mult}！免費遊戲共得 ${fmt(final)} 分`,"fs");
+    await bigWinIfAny(final);
+  } else {
+    await bigWinIfAny(fsTotal);
+  }
   await wait(400);
 }
 /* gridHasWild 由 engine.js 提供 */
@@ -868,6 +918,71 @@ async function routeBonus(key){
 }
 
 /* ============================================================
+   推筒子下注（莊／初／川／尾）— FS 加成(K=3) + 購買(單局)共用
+   牌型/比牌由 paigow.js（單一真相源）；UI 只演。
+   ============================================================ */
+const PG = (typeof PAIGOW!=="undefined") ? PAIGOW : null;
+function pgTileText(t){ return t.white ? "🀆" : (t.n+"筒"); }
+function renderPgTiles(elId, hand, faceUp){
+  const el=$(elId); el.innerHTML="";
+  hand.forEach(t=>{ const d=document.createElement("div"); d.className="pg-tile"+(faceUp?"":" down"); d.textContent=faceUp?pgTileText(t):""; el.appendChild(d); });
+}
+function pgLabel(hand){ const e=PG.evalHand(hand); return e.type + (e.rank===2?(" "+e.pts+"點"):(e.rank===1?" 鱉十":"")); }
+
+// 玩一局：發牌(面朝下)→玩家點一門→揭牌→回 {gate, outcome, deal}
+function runPaigowRound(title, statText){
+  return new Promise(resolve=>{
+    showBonusOv("paigow");
+    $("pg-head").textContent=title; $("pg-stat").textContent=statText||"";
+    const deal = PG.dealRound();
+    renderPgTiles("pg-t-banker", deal.banker, false); $("pg-p-banker").textContent="";
+    ["chu","chuan","wei"].forEach(g=>{ renderPgTiles("pg-t-"+g, deal.gates[g], false); $("pg-p-"+g).textContent=""; const s=$("pg-"+g); s.classList.remove("picked","won","lost"); });
+    $("pg-center").textContent="🎲 "+deal.dice.join("+");
+    $("pg-hint").textContent="點一門下注（初／川／尾），從 "+PG.CONFIG.GATE_NAMES[deal.startGate]+"起發";
+    let locked=false;
+    const seats=["chu","chuan","wei"].map(g=>$("pg-"+g));
+    const pick=(g)=>{
+      if(locked) return; locked=true; seats.forEach(s=>s.onclick=null);
+      $("pg-"+g).classList.add("picked"); sndCoin(); $("pg-hint").textContent="揭牌中…";
+      setTimeout(()=>{
+        renderPgTiles("pg-t-banker", deal.banker, true); $("pg-p-banker").textContent=pgLabel(deal.banker);
+        ["chu","chuan","wei"].forEach(gg=>{ renderPgTiles("pg-t-"+gg, deal.gates[gg], true); $("pg-p-"+gg).textContent=pgLabel(deal.gates[gg]); });
+        const oc=deal.result[g];
+        $("pg-"+g).classList.add(oc==="lose"?"lost":"won");
+        $("pg-center").textContent = oc==="tenwang"?"天王勝！":oc==="win"?"門勝！":"莊勝";
+        if(oc!=="lose"){ sndWinSmall(); } else sndStop();
+        setTimeout(()=>resolve({gate:g, outcome:oc, deal}), 1150);
+      }, 480);
+    };
+    seats.forEach(s=>s.onclick=()=>pick(s.dataset.gate));
+  });
+}
+
+// FS 加成：K 局連乘（門勝×2／天王×4／輸×1），回 {mult, final}
+async function runPaigowMultiplier(fsTotal){
+  const C=PG.CONFIG.FS_MULT; let mult=1;
+  for(let i=0;i<C.rounds;i++){
+    const r=await runPaigowRound(`🀄 免費加成 ${i+1}/${C.rounds}`, `FS 獎金 ${fmt(fsTotal)}　累積 ×${mult}`);
+    const f = r.outcome==="tenwang"?C.tenwang : r.outcome==="win"?C.win : C.lose;
+    mult*=f;
+    $("pg-stat").textContent = `累積加成 ×${mult}` + (f>1?`（本局 ×${f}）`:`（本局保本 ×1）`);
+    await wait(800);
+  }
+  hideBonusOv("paigow");
+  return { mult, final: Math.round(fsTotal*mult) };
+}
+
+// 購買推筒子：單局，門勝×win／天王×tenwang／輸0
+async function runPaigowBuy(){
+  const B=CONFIG.BUY_PAIGOW;
+  const r=await runPaigowRound("🀄 購買推筒子（壓一門）", `成本 ${fmt(B.cost)}　門勝×${B.win}／天王×${B.tenwang}`);
+  const mult = r.outcome==="tenwang"?B.tenwang : r.outcome==="win"?B.win : 0;
+  $("pg-stat").textContent = mult>0?`贏！派彩 ${fmt(B.cost*mult)}`:"莊勝，本局無派彩";
+  await wait(900); hideBonusOv("paigow");
+  return { outcome:r.outcome, mult, payout: B.cost*mult };
+}
+
+/* ============================================================
    購買功能 Buy Feature — 花費點數直接觸發特色
    買價來自 engine.js CONFIG.BUY（買來 RTP ≈ 基礎 RTP，sim.cjs 已驗證）
    ============================================================ */
@@ -908,7 +1023,24 @@ async function buyFeature(key){
     S.spinning=false; $("btn-spin").disabled=false; $("btn-buy").disabled=false;
   }
 }
-$("btn-buy").addEventListener("click", openBuyMenu);
+// 改版：購買特色只剩單局推筒子（社交 ×10/×100）。伺服器模式維持舊選單（待後續整合）。
+async function buyPaigowFree(){
+  if (S.spinning) return;
+  const B=CONFIG.BUY_PAIGOW;
+  if (S.balance < B.cost){ S.balance=CONFIG.startBalance; refreshMeters(); setBanner("餘額已補充，繼續遊戲！"); if(S.balance<B.cost) return; }
+  ac(); S.spinning=true; $("btn-spin").disabled=true; $("btn-buy").disabled=true;
+  S.balance -= B.cost; $("m-win").textContent="0"; refreshMeters();
+  setBanner("⚡ 購買推筒子 "+fmt(B.cost)+" 分");
+  try{
+    const r=await runPaigowBuy();
+    if (r.payout>0){ S.balance+=r.payout; refreshMeters(); $("m-win").textContent=fmt(r.payout);
+      setBanner((r.outcome==="tenwang"?"★ 天王勝莊！":"門勝莊！")+"派彩 "+fmt(r.payout)+" 分");
+      await new Promise(res=>showOverlay(r.outcome==="tenwang"?"TENWANG WIN":"BIG WIN", r.payout, res));
+    } else { setBanner("莊家勝・本局無派彩"); await wait(900); }
+  } catch(err){ console.error("buyPaigow error:",err); setBanner("購買發生錯誤"); hideBonusOv("paigow"); }
+  finally{ S.spinning=false; $("btn-spin").disabled=false; $("btn-buy").disabled=false; }
+}
+$("btn-buy").addEventListener("click", ()=> SERVER_MODE ? openBuyMenu() : buyPaigowFree());
 $("buy-cancel").addEventListener("click", ()=>hideBonusOv("buymenu"));
 
 /* ============================================================
@@ -1088,29 +1220,33 @@ function buildPaytable(){
   </div></div>`;
 
   // ── Bonus Game ──
-  h+=`<div class="pt-sec"><div class="pt-sec-title">🀆 Bonus Game（白板，二選一）</div>
+  h+=`<div class="pt-sec"><div class="pt-sec-title">🀆 白板特色（改版）</div>
   <div class="pt-rule">
-  • 白板 🀆 出現 <b>${CONFIG.BONUS_TRIGGER}+ 個</b>觸發，<b>自動停下</b>讓玩家二選一<br><br>
-  <b>🎁 A. 選寶箱（低波動）</b><br>
-  ${CONFIG.PICK.COUNT} 格寶箱，依序點開累積獎分；翻到 💣 立刻結束。<br>
-  獎格：+1 / +2 / +3 / +5 / +8 / +12 倍 &nbsp;│&nbsp; 特殊：×2 倍率格<br>
-  封頂：<b>${CONFIG.PICK.CAP}×</b> 總注 &nbsp;│&nbsp; 勝率高、起伏小<br><br>
-  <b>🀄 B. 推筒子比牌（高波動）</b><br>
-  閒家 vs 莊家，各擲兩骰取點數（個位數）<br>
-  對子 &gt; 散牌 &nbsp;│&nbsp; 同點或同對：莊家勝（莊家優勢）<br>
-  連勝累加步進：<b>${CONFIG.CB.STEP.slice(0,7).map(v=>v+'×').join(' → ')} …</b><br>
-  雙六天王對勝 → 額外獎勵 <span class="pt-badge major-b">MAJOR JACKPOT</span><br>
-  封頂：<b>${CONFIG.CB.CAP}×</b> 總注（全機最大獎）&nbsp;│&nbsp; 一輸即結束
+  <b>🎁 一般遊戲：白板 ${CONFIG.BONUS_TRIGGER}+ → 選寶箱</b><br>
+  ${CONFIG.PICK.COUNT} 格寶箱，依序點開累積獎分；翻到 💣 結束。獎格 +1~+12、特殊 ×2 格。封頂 <b>${CONFIG.PICK.CAP}×</b> 總注。<br><br>
+  <b>🀄 免費遊戲中出現白板 → 推筒子加成</b><br>
+  不立即進；免費遊戲結束後帶<b>全部免費獎金</b>進推筒子，玩 <b>${PG?PG.CONFIG.FS_MULT.rounds:3} 局</b>：<br>
+  每局選一門（初／川／尾）對莊比牌 ── <b>門勝 ×2／天王(雙白板) ×4／輸保本 ×1</b>，倍數<b>連乘</b>。<br>
+  最高 <b>64×</b> 免費獎金（不歸零，最低保本）。
   </div></div>`;
 
-  // ── 購買功能 ──
-  h+=`<div class="pt-sec"><div class="pt-sec-title">⚡ 購買特色（Buy Feature）</div>
+  // ── 購買功能（改版：只剩推筒子）──
+  h+=`<div class="pt-sec"><div class="pt-sec-title">⚡ 購買特色 = 推筒子</div>
   <div class="pt-rule">
-  按「購買 ⚡」直接花費點數觸發特色，免等自然觸發。<b>買來的 RTP ≈ 一般遊戲（買不吃虧）</b>：<br>
-  <span class="pt-hl">${CONFIG.BUY.fs.label}</span> ── ${CONFIG.BUY.fs.mult}× 總注（${CONFIG.BUY.fs.desc}）<br>
-  <span class="pt-hl">${CONFIG.BUY.hs.label}</span> ── ${CONFIG.BUY.hs.mult}× 總注（${CONFIG.BUY.hs.desc}）<br>
-  <span class="pt-hl">${CONFIG.BUY.bonus.label}</span> ── ${CONFIG.BUY.bonus.mult}× 總注（${CONFIG.BUY.bonus.desc}）<br>
-  <br>買價＝特色期望值 ÷ 目標RTP，故與一般遊戲期望一致（sim.cjs 已驗證）。
+  按「購買 ⚡」花 <b>${fmt(CONFIG.BUY_PAIGOW.cost)}</b> 直接玩一局推筒子，壓一門對莊：<br>
+  <b>門勝莊 → ×${CONFIG.BUY_PAIGOW.win}</b>（${fmt(CONFIG.BUY_PAIGOW.cost*CONFIG.BUY_PAIGOW.win)}）&nbsp;│&nbsp;
+  <b>天王勝莊 → ×${CONFIG.BUY_PAIGOW.tenwang}</b>（${fmt(CONFIG.BUY_PAIGOW.cost*CONFIG.BUY_PAIGOW.tenwang)}）&nbsp;│&nbsp; 輸 → 無派彩<br>
+  只玩一局結算。
+  </div></div>`;
+
+  // ── 推筒子規則 ──
+  h+=`<div class="pt-sec"><div class="pt-sec-title">🀄 推筒子玩法</div>
+  <div class="pt-rule">
+  40 張牌（一~九筒各 4 張 + 白板 4 張）。莊家 vs 初門／川門／尾門，三門各自與莊比牌，每局重洗。<br>
+  擲兩骰由莊起算決定發牌起門；面朝下發牌 → 下注 → 揭牌結算。<br>
+  <b>點數</b>：兩張相加取個位數，白板 = 0.5 點，合計 0 點為「鱉十」。<br>
+  <b>牌型</b>：天王(雙白板) ＞ 對子 ＞ 點數 ＞ 鱉十。<br>
+  <b>勝負</b>：比牌型 → 比點數 → 比最大單張；任何平手莊家勝。
   </div></div>`;
 
   // ── 遊戲資訊 ──

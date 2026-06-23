@@ -47,7 +47,7 @@ const CONFIG = {
 
   // ===== RTP 調校旋鈕（由 sim.cjs 校出，見檔末註解）=====
   BASE_PAY_SCALE: 2.30,   // 基礎遊戲線賠倍率（含免費遊戲底層）
-  FS_BONUS_MULT:  7.50,   // 免費遊戲最終放大（FS 為直接觸發特色，全玩家共享）
+  FS_BONUS_MULT:  5.26,   // 免費遊戲最終放大（已回調：FS 中觸發白板→FS後推筒子加成會放大 ~3.45×，故下調保 RTP）
   HS_BONUS_MULT:  1.19,   // Hold & Spin（一般金幣）最終放大；jackpot 幣全拿不套此倍率
   PICK_BONUS_MULT:1.62,   // 選寶箱最終放大
   CB_BONUS_MULT:  2.09,   // 推筒子比牌（連勝步進）最終放大
@@ -88,6 +88,9 @@ const CONFIG = {
     hs:    { mult:28,   label:"Hold & Spin", icon:"🪙", desc:"直接鎖 6 金幣開始 Hold & Spin" },
     bonus: { mult:14.5, label:"Bonus Game",  icon:"🀆", desc:"直接進 Bonus，仍由你二選一波動性" },
   },
+  // 購買特色（改版）：只剩單局推筒子。社交預設門勝×10/天王×100（RTP~562%，僅社交/玩具幣）；
+  //   真金流須重算門勝×1.69/天王×16.89（reprice，見 paigow.js），由 mode 切換。
+  BUY_PAIGOW: { cost:2000, win:10, tenwang:100, mode:"social" },
 
   PAYLINES: [
     [1,1,1,1,1],[0,0,0,0,0],[2,2,2,2,2],
@@ -230,11 +233,13 @@ function simHoldAndSpin(bet, startCount, jpState, rng=RND){
   return sum;
 }
 
-/* ----- 免費遊戲 ----- */
-// 回傳贏分（credits）。strips 為轉軸帶
+/* ----- 免費遊戲 -----
+   回傳 { total, bonusSeen }。bonusSeen=免費遊戲途中曾出現白板3+
+   → 由呼叫端在 FS 結束後接「推筒子加成」(paigow.simFSMult)，把 total 乘上去。
+   （加成倍數會放大 FS 獎金，故 FS_BONUS_MULT 已對應回調保 RTP；見 sim.cjs）       */
 function simFreeSpins(strips, bet, rng=RND){
   const lb=bet/CONFIG.LINES;
-  let spins=CONFIG.FS_SPINS, multIdx=-1, total=0;
+  let spins=CONFIG.FS_SPINS, multIdx=-1, total=0, bonusSeen=false;
   while (spins>0){
     spins--;
     const grid=spinGrid(strips,rng);
@@ -244,9 +249,10 @@ function simFreeSpins(strips, bet, rng=RND){
     for (const w of lws) total += w.pay*curMult;
     const sp=positionsOf(grid,"scatter");
     if (sp.length>=3) total += scatterPayout(sp.length,bet)*CONFIG.FS_BONUS_MULT;
+    if (positionsOf(grid,"bonus").length>=CONFIG.BONUS_TRIGGER) bonusSeen=true;   // 白板3+ → FS 後加成
     if (sp.length>=CONFIG.FS_TRIGGER) spins+=CONFIG.FS_SPINS;   // 再觸發
   }
-  return total;
+  return { total, bonusSeen };
 }
 
 /* ----- 選寶箱 ----- */
