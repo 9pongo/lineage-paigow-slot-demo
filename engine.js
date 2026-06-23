@@ -83,13 +83,14 @@ const CONFIG = {
   // 購買功能（Buy Feature）：直接花錢觸發特色。
   // 買價 = 特色EV / 目標buy-RTP，令買來的 RTP ≈ 基礎 RTP（買不改變期望值）。
   // EV 由 sim.cjs 實測：FS 24.51 / HS(6顆起) 26.60 / Bonus 13.67（× 總注）。
+  // 購買特色（改版）：保留免費遊戲、Hold&Spin 兩項；原「買 Bonus Game」改為「買推筒子」。
+  //   fs/hs：mult × 總注（RTP≈基礎，已驗）；paigow：固定價 2000，社交門勝×10/天王×100。
   BUY: {
-    fs:    { mult:26,   label:"免費遊戲",    icon:"💰", desc:"直接進 8 次免費遊戲（Wild 倍率階梯）" },
-    hs:    { mult:28,   label:"Hold & Spin", icon:"🪙", desc:"直接鎖 6 金幣開始 Hold & Spin" },
-    bonus: { mult:14.5, label:"Bonus Game",  icon:"🀆", desc:"直接進 Bonus，仍由你二選一波動性" },
+    fs:     { mult:26,        label:"免費遊戲",    icon:"💰", desc:"直接進 8 次免費遊戲（Wild 倍率階梯）" },
+    hs:     { mult:28,        label:"Hold & Spin", icon:"🪙", desc:"直接鎖 6 金幣開始 Hold & Spin" },
+    paigow: { fixedCost:2000, label:"推筒子",      icon:"🀄", desc:"壓一門對莊，單局：門勝×10、天王×100" },
   },
-  // 購買特色（改版）：只剩單局推筒子。社交預設門勝×10/天王×100（RTP~562%，僅社交/玩具幣）；
-  //   真金流須重算門勝×1.69/天王×16.89（reprice，見 paigow.js），由 mode 切換。
+  // 購買推筒子賠率（社交預設；真金流須 reprice 門勝×1.69/天王×16.89，見 paigow.js）
   BUY_PAIGOW: { cost:2000, win:10, tenwang:100, mode:"social" },
 
   PAYLINES: [
@@ -199,7 +200,7 @@ function jackpotWin(tier, bet, jpState){
 
 /* ----- 購買功能 ----- */
 // 某購買選項的花費（credits）= mult × 總注
-function buyCost(key, bet){ const B=CONFIG.BUY[key]; return B ? Math.round(B.mult*bet) : 0; }
+function buyCost(key, bet){ const B=CONFIG.BUY[key]; if(!B) return 0; return B.fixedCost!=null ? B.fixedCost : Math.round(B.mult*bet); }
 
 /* ----- Hold & Spin ----- */
 function rollCoin(rng=RND){

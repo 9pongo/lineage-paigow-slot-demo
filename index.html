@@ -990,7 +990,7 @@ function openBuyMenu(){
   if (S.spinning) return;
   if (S.auto) stopAuto();
   const wrap=$("buy-choices"); wrap.innerHTML="";
-  for (const key of ["fs","hs","bonus"]){
+  for (const key of ["fs","hs","paigow"]){
     const B=CONFIG.BUY[key], cost=buyCost(key,bet()), afford=S.balance>=cost;
     const row=document.createElement("div");
     row.className="buy-row"+(afford?"":" dim");
@@ -1014,33 +1014,22 @@ async function buyFeature(key){
   try{
     if (key==="fs")        await runFreeSpins();
     else if (key==="hs")   await runHoldAndSpin(randomCoinPositions(CONFIG.HS_TRIGGER));
-    else if (key==="bonus"){ const choice=await enterBonus(); await routeBonus(choice); }
+    else if (key==="paigow"){                                  // 改版：原「買 Bonus Game」→ 買推筒子
+      const r=await runPaigowBuy();
+      if (r.payout>0){ S.balance+=r.payout; refreshMeters(); $("m-win").textContent=fmt(r.payout);
+        setBanner((r.outcome==="tenwang"?"★ 天王勝莊！":"門勝莊！")+"派彩 "+fmt(r.payout)+" 分");
+        await new Promise(res=>showOverlay(r.outcome==="tenwang"?"TENWANG WIN":"BIG WIN", r.payout, res));
+      } else { setBanner("莊家勝・本局無派彩"); await wait(900); }
+    }
   } catch(err){
     console.error("buyFeature error:",err); setBanner("購買特色發生錯誤");
-    ["chooser","pickem","cardbattle","overlay","buymenu"].forEach(id=>{ const el=$(id); if(el) el.classList.remove("show"); });
+    ["chooser","pickem","cardbattle","paigow","overlay","buymenu"].forEach(id=>{ const el=$(id); if(el) el.classList.remove("show"); });
     clearHeldTags(); guardiansReset(); clearBeams();
   } finally {
     S.spinning=false; $("btn-spin").disabled=false; $("btn-buy").disabled=false;
   }
 }
-// 改版：購買特色只剩單局推筒子（社交 ×10/×100）。伺服器模式維持舊選單（待後續整合）。
-async function buyPaigowFree(){
-  if (S.spinning) return;
-  const B=CONFIG.BUY_PAIGOW;
-  if (S.balance < B.cost){ S.balance=CONFIG.startBalance; refreshMeters(); setBanner("餘額已補充，繼續遊戲！"); if(S.balance<B.cost) return; }
-  ac(); S.spinning=true; $("btn-spin").disabled=true; $("btn-buy").disabled=true;
-  S.balance -= B.cost; $("m-win").textContent="0"; refreshMeters();
-  setBanner("⚡ 購買推筒子 "+fmt(B.cost)+" 分");
-  try{
-    const r=await runPaigowBuy();
-    if (r.payout>0){ S.balance+=r.payout; refreshMeters(); $("m-win").textContent=fmt(r.payout);
-      setBanner((r.outcome==="tenwang"?"★ 天王勝莊！":"門勝莊！")+"派彩 "+fmt(r.payout)+" 分");
-      await new Promise(res=>showOverlay(r.outcome==="tenwang"?"TENWANG WIN":"BIG WIN", r.payout, res));
-    } else { setBanner("莊家勝・本局無派彩"); await wait(900); }
-  } catch(err){ console.error("buyPaigow error:",err); setBanner("購買發生錯誤"); hideBonusOv("paigow"); }
-  finally{ S.spinning=false; $("btn-spin").disabled=false; $("btn-buy").disabled=false; }
-}
-$("btn-buy").addEventListener("click", ()=> SERVER_MODE ? openBuyMenu() : buyPaigowFree());
+$("btn-buy").addEventListener("click", openBuyMenu);
 $("buy-cancel").addEventListener("click", ()=>hideBonusOv("buymenu"));
 
 /* ============================================================
@@ -1230,13 +1219,14 @@ function buildPaytable(){
   最高 <b>64×</b> 免費獎金（不歸零，最低保本）。
   </div></div>`;
 
-  // ── 購買功能（改版：只剩推筒子）──
-  h+=`<div class="pt-sec"><div class="pt-sec-title">⚡ 購買特色 = 推筒子</div>
+  // ── 購買功能（改版：三項，第三項改為推筒子）──
+  h+=`<div class="pt-sec"><div class="pt-sec-title">⚡ 購買特色（三選一）</div>
   <div class="pt-rule">
-  按「購買 ⚡」花 <b>${fmt(CONFIG.BUY_PAIGOW.cost)}</b> 直接玩一局推筒子，壓一門對莊：<br>
-  <b>門勝莊 → ×${CONFIG.BUY_PAIGOW.win}</b>（${fmt(CONFIG.BUY_PAIGOW.cost*CONFIG.BUY_PAIGOW.win)}）&nbsp;│&nbsp;
-  <b>天王勝莊 → ×${CONFIG.BUY_PAIGOW.tenwang}</b>（${fmt(CONFIG.BUY_PAIGOW.cost*CONFIG.BUY_PAIGOW.tenwang)}）&nbsp;│&nbsp; 輸 → 無派彩<br>
-  只玩一局結算。
+  按「購買 ⚡」選一項直接觸發：<br>
+  <span class="pt-hl">💰 ${CONFIG.BUY.fs.label}</span> ── ${CONFIG.BUY.fs.mult}× 總注（買來 RTP ≈ 一般遊戲）<br>
+  <span class="pt-hl">🪙 ${CONFIG.BUY.hs.label}</span> ── ${CONFIG.BUY.hs.mult}× 總注（買來 RTP ≈ 一般遊戲）<br>
+  <span class="pt-hl">🀄 ${CONFIG.BUY.paigow.label}</span> ── 固定 <b>${fmt(CONFIG.BUY_PAIGOW.cost)}</b>，壓一門對莊：
+    門勝 ×${CONFIG.BUY_PAIGOW.win}（${fmt(CONFIG.BUY_PAIGOW.cost*CONFIG.BUY_PAIGOW.win)}）／天王 ×${CONFIG.BUY_PAIGOW.tenwang}（${fmt(CONFIG.BUY_PAIGOW.cost*CONFIG.BUY_PAIGOW.tenwang)}）／輸無派彩，單局結算
   </div></div>`;
 
   // ── 推筒子規則 ──
